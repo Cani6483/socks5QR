@@ -1,0 +1,177 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ip二维码生成器 </title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 500px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 30px;
+            box-sizing: border-box;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+     
+        #qrCode {
+            margin-top: 30px;
+            text-align: center;
+            
+        }
+        img {
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>ip二维码生成器 <a href="https://t.me/Cani03"> @Cani03</a></h2>
+    <div class="form-group">
+        <label for="input">输入格式 (主机:端口:账户:密码):</label>
+        <textarea id="input" style="white-space: nowrap; overflow: auto;" name="story" rows="10" cols="60" placeholder="例: 15.235.225.66:5001:m5rbn21594:y674jx35 一行一条" ></textarea>
+        <!-- <input type="text" id="input" placeholder="例: 15.235.225.66:5001:m5rbn21594:y674jx35" required> -->
+        <div id="error" class="error"></div>
+    </div>
+    <div class="form-group">
+        <label for="format">请选择二维码格式:</label>
+        <select id="format">
+            <option value="shadowrocket">小火箭 SOCKS5</option>
+            <option value="socks5">SOCKS5</option>
+            <option value="http">HTTP</option>
+        </select>
+    </div>
+    <button id="generate">生成二维码</button>
+    <div id="qrCode"></div>
+</div>
+
+<script>
+    document.getElementById('generate').addEventListener('click', function() {
+        const input = document.getElementById('input').value.trim();
+        const errorDiv = document.getElementById('error');
+        const qrCodeDiv = document.getElementById('qrCode');
+        const format =document.getElementById('format');
+        const sel = format.options[format.selectedIndex].value;
+
+
+        // 清除之前的错误信息和二维码
+        errorDiv.textContent = "";
+        qrCodeDiv.innerHTML = "";
+        var iparr = input.split(/[\r\n\t]/);
+
+
+        for (const key in iparr) {
+            if (Object.prototype.hasOwnProperty.call(iparr, key)) {
+                const element = iparr[key];
+        
+                // 分割输入字符串
+                const parts = element.split(':');
+
+                if (parts.length !== 4) {
+                    errorDiv.textContent = "请输入正确的格式: 主机:端口:账户:密码";
+                    return;
+                }
+
+                const [host, port, account, password] = parts;
+
+                // 验证端口是否为数字
+                if (isNaN(port) || port < 1 || port > 65535) {
+                    errorDiv.textContent = "端口必须是1到65535之间的数字";
+                    return;
+                }
+
+                // 编码账户和密码，防止特殊字符引起的问题
+                const encodedAccount = encodeURIComponent(account);
+                const encodedPassword = encodeURIComponent(password);
+
+                // 根据选择的格式生成二维码数据
+                let qrCodeData;
+
+                var ipbiz=`${btoa(`${encodedAccount}:${encodedPassword}@${host}:${port}`)}`;
+                if(sel=='http'){
+                    // SOCKS 格式
+                    qrCodeData = "http://"+ipbiz+"?method=auto";
+                }else{
+                    // SOCKS 格式
+                    qrCodeData = "socks://"+ipbiz+"=none&method=strict";
+                }
+
+                
+                // 生成二维码
+                new QRCode(qrCodeDiv, {
+                    text: qrCodeData,
+                    quiet: '30',
+                    width: 256,
+                    height: 256,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                // 创建一个 `<div>` 元素
+                const newDiv = document.createElement("div");
+                newDiv.style.height="40px";
+                newDiv.style.textAlign = 'left';
+                // 创建一个文本节点
+                const newContent = document.createTextNode(element);
+
+                // 将文本节点添加到 div 元素中
+                newDiv.appendChild(newContent);
+
+                // 找到要添加到的父元素
+                const currentDiv = document.getElementById("qrCode");
+
+                // 将新的 div 元素添加到父元素的末尾
+                currentDiv.appendChild(newDiv);
+                
+
+            }
+        }
+
+    });
+</script>
+
+</body>
+</html>
