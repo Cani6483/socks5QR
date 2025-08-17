@@ -1,1 +1,2 @@
-[build] functions = "functions/socks5QR.html"
+[build] 
+    functions = "functions/socks5QR.html"
