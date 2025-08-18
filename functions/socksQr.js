@@ -41,7 +41,7 @@
 
                 var ipbiz=`${btoa(`${encodedAccount}:${encodedPassword}@${host}:${port}`)}`;
                 if(sel=='http'){
-                    // SOCKS 格式
+                    // HTTP 格式
                     qrCodeData = "http://"+ipbiz+"?method=auto";
                 }else{
                     // SOCKS 格式
