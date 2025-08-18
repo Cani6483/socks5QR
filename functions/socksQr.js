@@ -45,7 +45,7 @@
                     qrCodeData = "http://"+ipbiz+"?method=auto";
                 }else{
                     // SOCKS 格式
-                    qrCodeData = "socks://"+ipbiz+"=none&method=strict";
+                    qrCodeData = "socks://"+ipbiz+"?obfs=none&method=strict";
                 }
 
                 
