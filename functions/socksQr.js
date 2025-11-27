@@ -19,7 +19,7 @@
                 if(iparr1.length<0){
                     continue;
                 }
-                if(iparr1.split(' ').length>=1){
+                if(iparr1.split(' ').length>1){
                     iparr1 = iparr1.split(' ')[1];
                 }
                 
