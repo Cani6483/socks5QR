@@ -15,11 +15,18 @@
         for (const key in iparr) {
             if (Object.prototype.hasOwnProperty.call(iparr, key)) {
                 const element = iparr[key];
-        
+                var iparr1=element;
+                if(iparr1.length<0){
+                    continue;
+                }
+                if(iparr1.split(' ').length>=1){
+                    iparr1 = iparr1.split(' ')[1];
+                }
+                
                 // 分割输入字符串
-                const parts = element.split(':');
+                const parts = iparr1.split(/[:|]/);
 
-                if (parts.length !== 4) {
+                if (parts.length < 4) {
                     errorDiv.textContent = "请输入正确的格式: 主机:端口:账户:密码";
                     return;
                 }
@@ -43,7 +50,11 @@
                 if(sel=='http'){
                     // HTTP 格式
                     qrCodeData = "http://"+ipbiz+"?method=auto";
-                }else{
+                }
+                else if(sel=='ss'){
+                    qrCodeData = "ss://"+ipbiz;
+                }
+                else{
                     // SOCKS 格式
                     qrCodeData = "socks://"+ipbiz+"?obfs=none&method=strict";
                 }
