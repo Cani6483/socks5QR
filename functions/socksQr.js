@@ -9,20 +9,23 @@
         // 清除之前的错误信息和二维码
         errorDiv.textContent = "";
         qrCodeDiv.innerHTML = "";
-        var iparr = input.split(/[\r\n\t]/);
+        var iparr = input.split(/[\r\n]/);
 
 
         for (const key in iparr) {
             if (Object.prototype.hasOwnProperty.call(iparr, key)) {
                 const element = iparr[key];
                 var iparr1=element;
-                if(iparr1.length<0){
+                if(element.trim().length==0){
                     continue;
                 }
-                if(iparr1.split(' ').length>1){
-                    iparr1 = iparr1.split(' ')[1];
+                if(iparr1.split(/[\t]/).length>1){
+                    iparr1 = iparr1.split(/[\t]/)[1];
+                    
                 }
-                
+                if(iparr1.length==0){
+                    continue;
+                }
                 // 分割输入字符串
                 const parts = iparr1.split(/[:|]/);
 
