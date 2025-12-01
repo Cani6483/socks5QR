@@ -19,8 +19,10 @@
                 if(element.trim().length==0){
                     continue;
                 }
-                if(iparr1.split(/[\t]/).length>1){
-                    iparr1 = iparr1.split(/[\t]/)[1];
+
+                var arr = iparr1.split(/[\t ]/);
+                if(arr.length>1){
+                    iparr1 = arr[1];
                     
                 }
                 if(iparr1.length==0){
@@ -30,7 +32,7 @@
                 const parts = iparr1.split(/[:|]/);
 
                 if (parts.length < 4) {
-                    errorDiv.textContent = "请输入正确的格式: 主机:端口:账户:密码";
+                    errorDiv.textContent = "请输入正确的格式: 主机:端口:账户/算法:密码";
                     return;
                 }
 
