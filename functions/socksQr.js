@@ -30,7 +30,7 @@
 
                 if (parts.length < 4) {
                     errorDiv.textContent = "请输入正确的格式: 主机:端口:账户/算法:密码";
-                    return;
+                    continue;
                 }
 
                 const [host, port, account, password] = parts;
@@ -38,7 +38,7 @@
                 // 验证端口是否为数字
                 if (isNaN(port) || port < 1 || port > 65535) {
                     errorDiv.textContent = "端口必须是1到65535之间的数字";
-                    return;
+                    continue;
                 }
 
                 // 编码账户和密码，防止特殊字符引起的问题
