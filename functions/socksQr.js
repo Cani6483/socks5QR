@@ -15,21 +15,18 @@
         for (const key in iparr) {
             if (Object.prototype.hasOwnProperty.call(iparr, key)) {
                 const element = iparr[key];
-                var iparr1=element;
-                if(element.trim().length==0){
-                    continue;
-                }
-
-                var arr = iparr1.split(/[\t ]/);
-                if(arr.length>1){
-                    iparr1 = arr[1];
-                    
-                }
+                var iparr1=element.trim();
                 if(iparr1.length==0){
                     continue;
                 }
+
+                var arr = iparr1.trim().replace(/\s+/g, ' ').split(/[\t ]/);
+
+                if(arr.length>1 && !arr[1].match(/^(\d{1,2})(:)?(\d{1,2})\2(\d{1,2})$/)){
+                    iparr1 = arr[1];
+                }
                 // 分割输入字符串
-                const parts = iparr1.split(/[:|]/);
+                const parts = iparr1.split(/[:|/]/);
 
                 if (parts.length < 4) {
                     errorDiv.textContent = "请输入正确的格式: 主机:端口:账户/算法:密码";
