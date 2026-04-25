@@ -23,7 +23,9 @@
                 var arr = iparr1.trim().replace(/\s+/g, ' ').split(/[\t ]/);
 
                 if(arr.length>1 && !arr[1].match(/^(\d{1,2})(:)?(\d{1,2})\2(\d{1,2})$/)){
-                    iparr1 = arr[1];
+                    if(arr[1].split(/[:|/]/).length>=4){
+                        iparr1 = arr[1];
+                    }
                 }
                 // 分割输入字符串
                 const parts = iparr1.split(/[:|/]/);
