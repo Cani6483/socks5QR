@@ -1,5 +1,5 @@
 [build]
-    publish = "public"
+    publish = "functions"
     functions = "netlify/functions"
 
 [[redirects]]
@@ -18,16 +18,16 @@
     status = 301
 
 [[redirects]]
-    from = "/functions/socksQr.css"
+    from = "/functions/assets/socksQr.css"
     to = "/assets/socksQr.css"
     status = 301
 
 [[redirects]]
-    from = "/functions/socksQr.js"
+    from = "/functions/assets/socksQr.js"
     to = "/assets/socksQr.js"
     status = 301
 
 [[redirects]]
-    from = "/functions/mailApi.js"
+    from = "/functions/assets/mailApi.js"
     to = "/assets/mailApi.js"
     status = 301
