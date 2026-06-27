@@ -64,8 +64,27 @@
                 }
 
                 
+                const qrItem = document.createElement("div");
+                qrItem.className = "qr-item";
+
+                const qrImage = document.createElement("div");
+                qrImage.className = "qr-image";
+
+                const qrSource = document.createElement("button");
+                qrSource.type = "button";
+                qrSource.className = "qr-source";
+                qrSource.textContent = element;
+                qrSource.title = "点击复制";
+                qrSource.addEventListener("click", function() {
+                    copyQrText(element, qrSource);
+                });
+
+                qrItem.appendChild(qrImage);
+                qrItem.appendChild(qrSource);
+                qrCodeDiv.appendChild(qrItem);
+
                 // 生成二维码
-                new QRCode(qrCodeDiv, {
+                new QRCode(qrImage, {
                     text: qrCodeData,
                     quiet: '30',
                     width: 256,
@@ -74,24 +93,33 @@
                     colorLight: "#ffffff",
                     correctLevel: QRCode.CorrectLevel.H
                 });
-                // 创建一个 `<div>` 元素
-                const newDiv = document.createElement("div");
-                newDiv.style.height="40px";
-                newDiv.style.textAlign = 'left';
-                // 创建一个文本节点
-                const newContent = document.createTextNode(element);
-
-                // 将文本节点添加到 div 元素中
-                newDiv.appendChild(newContent);
-
-                // 找到要添加到的父元素
-                const currentDiv = document.getElementById("qrCode");
-
-                // 将新的 div 元素添加到父元素的末尾
-                currentDiv.appendChild(newDiv);
-                
-
             }
         }
 
     });
+
+async function copyQrText(text, button) {
+    try {
+        await navigator.clipboard.writeText(text);
+        showQrCopied(button);
+    } catch (error) {
+        const input = document.createElement("textarea");
+        input.value = text;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        document.body.removeChild(input);
+        showQrCopied(button);
+    }
+}
+
+function showQrCopied(button) {
+    const oldText = button.textContent;
+    button.textContent = "已复制";
+    button.classList.add("copied");
+
+    setTimeout(function() {
+        button.textContent = oldText;
+        button.classList.remove("copied");
+    }, 1200);
+}

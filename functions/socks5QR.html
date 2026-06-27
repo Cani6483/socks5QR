@@ -3,34 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ip二维码生成器 </title>
+    <title>IP 二维码生成器</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="./socksQr.css">
+    <link rel="stylesheet" type="text/css" href="./assets/socksQr.css">
 </head>
 <body>
+    <main class="app-shell">
+        <section class="tool-panel">
+            <header class="page-header">
+                <div>
+                    <p class="eyebrow">Proxy Toolkit</p>
+                    <h1>IP 二维码生成器</h1>
+                </div>
+                <nav class="page-nav" aria-label="页面切换">
+                    <a class="page-nav-link active" href="./socks5QR.html">IP 二维码</a>
+                    <a class="page-nav-link" href="./mailApi.html">邮件 API</a>
+                </nav>
+            </header>
 
-    <div class="container">
-        <h2>ip二维码生成器 </h2>
-        <div class="form-group">
-            <label for="input">输入格式 (主机:端口:账户/算法:密码) 一行一条:</label>
-            <textarea id="input" style="white-space: nowrap; overflow: auto; width: 100%;" name="story" rows="10" placeholder="例: 15.235.225.66:5001:m5rbn21594:y674jx35 一行一条" ></textarea>
-            <!-- <input type="text" id="input" placeholder="例: 15.235.225.66:5001:m5rbn21594:y674jx35" required> -->
-            <div id="error" class="error"></div>
-        </div>
-        <div class="form-group">
-            <label for="format">请选择二维码格式:</label>
-            <select id="format">
-                <option value="shadowrocket">小火箭 SOCKS5</option>
-                <option value="ss">小火箭 Shadowsocks</option>
-                <option value="socks5">SOCKS5</option>
-                <option value="http">HTTP</option>
+            <div class="form-group">
+                <label for="input">代理信息</label>
+                <textarea id="input" name="story" rows="10" placeholder="例: 15.235.225.66:5001:m5rbn21594:y674jx35&#10;一行一条"></textarea>
+                <p class="field-hint">格式：主机:端口:账户/算法:密码</p>
+                <div id="error" class="error"></div>
+            </div>
 
-            </select>
-        </div>
-        <button id="generate">生成二维码</button>
-        <div id="qrCode"></div>
-    </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="format">二维码格式</label>
+                    <select id="format">
+                        <option value="shadowrocket">小火箭 SOCKS5</option>
+                        <option value="ss">小火箭 Shadowsocks</option>
+                        <option value="socks5">SOCKS5</option>
+                        <option value="http">HTTP</option>
+                    </select>
+                </div>
+            </div>
 
-    <script src="./socksQr.js"></script>
+            <button id="generate" class="primary-action" type="button">生成二维码</button>
+            <div id="qrCode" class="result-grid"></div>
+        </section>
+    </main>
+
+    <script src="./assets/socksQr.js"></script>
 </body>
 </html>

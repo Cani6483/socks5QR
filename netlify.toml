@@ -1,2 +1,33 @@
-[build] 
-    functions = "functions"
+[build]
+    publish = "public"
+    functions = "netlify/functions"
+
+[[redirects]]
+    from = "/"
+    to = "/socks5QR.html"
+    status = 200
+
+[[redirects]]
+    from = "/functions/socks5QR.html"
+    to = "/socks5QR.html"
+    status = 301
+
+[[redirects]]
+    from = "/functions/mailApi.html"
+    to = "/mailApi.html"
+    status = 301
+
+[[redirects]]
+    from = "/functions/socksQr.css"
+    to = "/assets/socksQr.css"
+    status = 301
+
+[[redirects]]
+    from = "/functions/socksQr.js"
+    to = "/assets/socksQr.js"
+    status = 301
+
+[[redirects]]
+    from = "/functions/mailApi.js"
+    to = "/assets/mailApi.js"
+    status = 301

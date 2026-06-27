@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>邮件 API 批量获取</title>
+    <script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="./assets/socksQr.css">
+</head>
+<body>
+    <main class="app-shell">
+        <section class="tool-panel">
+            <header class="page-header">
+                <div>
+                    <p class="eyebrow">Mail Toolkit</p>
+                    <h1>邮件 API 批量获取</h1>
+                </div>
+                <nav class="page-nav" aria-label="页面切换">
+                    <a class="page-nav-link" href="./socks5QR.html">IP 二维码</a>
+                    <a class="page-nav-link active" href="./mailApi.html">邮件 API</a>
+                </nav>
+            </header>
+
+            <div class="form-group">
+                <label for="input">邮箱账号</label>
+                <textarea id="input" name="story" rows="10" placeholder="例: user@example.com password&#10;一行一条"></textarea>
+                <p class="field-hint">格式：邮箱账号 邮箱密码</p>
+                <div id="error" class="error"></div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="format">邮件 API</label>
+                    <select id="format">
+                        <option value="firstmail">firstmail.ltd</option>
+                    </select>
+                </div>
+            </div>
+
+            <button id="generate" class="primary-action" type="button">获取邮件验证码</button>
+            <div id="mailCode" class="mail-results"></div>
+        </section>
+    </main>
+
+    <script src="./assets/mailApi.js"></script>
+</body>
+</html>
