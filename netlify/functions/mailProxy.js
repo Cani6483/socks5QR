@@ -25,6 +25,17 @@ async function fetchLatestMail(requestData) {
 
     const text = await response.text();
 
+    if (response.status === 404) {
+        return {
+            statusCode: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+                empty: true,
+                message: "未收到邮件"
+            })
+        };
+    }
+
     return {
         statusCode: response.status,
         contentType: response.headers.get("content-type") || "text/plain",

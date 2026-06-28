@@ -10,6 +10,8 @@ document.getElementById("generate").addEventListener("click", async function() {
 
     const lines = input.split(/\r?\n/);
 
+    let resultIndex = 0;
+
     for (const line of lines) {
         const text = line.trim();
         if (!text) continue;
@@ -21,13 +23,14 @@ document.getElementById("generate").addEventListener("click", async function() {
         }
 
         const [account, password] = parts;
+        resultIndex += 1;
 
-        const result = appendMailResult(mailCodeDiv, account, password, "获取中...");
+        const result = appendMailResult(mailCodeDiv, resultIndex, account, password, "获取中...");
         result.codeBtn.classList.add("loading");
 
         if (sel === "firstmail") {
-            getFirstMailLatestMessage(account, password).then(function(code) {
-                result.codeBtn.textContent = code;
+            getFirstMailLatestMessage(account, password).then(function(message) {
+                setMailMessage(result.timeEl, result.codeBtn, message);
                 result.codeBtn.classList.remove("loading");
             }).catch(function() {
                 result.codeBtn.textContent = "获取失败";
@@ -55,13 +58,26 @@ async function getFirstMailLatestMessage(account, password) {
 
         const text = await response.text();
 
-        if (!response.ok) {
-            return `HTTP ${response.status}`;
+        if (response.status === 404) {
+            return {
+                code: "未收到邮件",
+                receivedAt: null
+            };
         }
 
-        return extractEightDigitCode(text) || "No code";
+        if (!response.ok) {
+            return {
+                code: `HTTP ${response.status}`,
+                receivedAt: null
+            };
+        }
+
+        return extractMailMessage(text);
     } catch (error) {
-        return `Request failed`;
+        return {
+            code: "Request failed",
+            receivedAt: null
+        };
     }
 }
 
@@ -78,18 +94,31 @@ function getMailProxyUrl() {
     return "http://127.0.0.1:3000/mail/latest";
 }
 
-function extractEightDigitCode(responseText) {
+function extractMailMessage(responseText) {
     let content = responseText;
+    let receivedAt = null;
 
     try {
         const data = JSON.parse(responseText);
+        if (data && data.empty) {
+            return {
+                code: "未收到邮件",
+                receivedAt: null
+            };
+        }
+
         content = collectText(data).join("\n");
+        receivedAt = findMailTime(data) || extractMailHeaderTime(content);
     } catch (e) {
         content = responseText;
+        receivedAt = extractMailHeaderTime(content);
     }
 
     const match = String(content).match(/(^|\D)(\d{8})(?!\d)/);
-    return match ? match[2] : "";
+    return {
+        code: match ? match[2] : "No code",
+        receivedAt: receivedAt || null
+    };
 }
 
 function collectText(value) {
@@ -108,13 +137,107 @@ function collectText(value) {
     return [];
 }
 
-function appendMailResult(container, account, password, code) {
+function findMailTime(value) {
+    const timeKeys = [
+        "receivedAt",
+        "received_at",
+        "receivedDate",
+        "received_date",
+        "arrivalTime",
+        "arrival_time",
+        "sentAt",
+        "sent_at",
+        "createdAt",
+        "created_at",
+        "date",
+        "time",
+        "timestamp"
+    ];
+
+    if (Array.isArray(value)) {
+        for (const item of value) {
+            const found = findMailTime(item);
+            if (found) return found;
+        }
+    }
+
+    if (value && typeof value === "object") {
+        for (const key of timeKeys) {
+            if (Object.prototype.hasOwnProperty.call(value, key)) {
+                const date = parseMailTime(value[key]);
+                if (date) return date;
+            }
+        }
+
+        for (const item of Object.values(value)) {
+            const found = findMailTime(item);
+            if (found) return found;
+        }
+    }
+
+    return null;
+}
+
+function parseMailTime(value) {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return value;
+    }
+
+    if (typeof value === "number") {
+        const time = value < 10000000000 ? value * 1000 : value;
+        const date = new Date(time);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+        const text = value.trim();
+        if (/^\d+$/.test(text)) {
+            return parseMailTime(Number(text));
+        }
+
+        const date = new Date(text);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    return null;
+}
+
+function extractMailHeaderTime(text) {
+    const dateHeader = String(text).match(/(?:^|\n)Date:\s*([^\n\r]+)/i);
+    if (dateHeader) {
+        return parseMailTime(dateHeader[1]);
+    }
+
+    const receivedHeader = String(text).match(/(?:^|\n)Received:[\s\S]*?;\s*([^\n\r]+)/i);
+    return receivedHeader ? parseMailTime(receivedHeader[1]) : null;
+}
+
+function formatMailTime(value) {
+    const date = parseMailTime(value);
+    if (!date) return "-";
+
+    const pad = number => String(number).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function setMailMessage(timeElement, button, message) {
+    const code = typeof message === "string" ? message : message.code;
+    const receivedAt = typeof message === "string" ? null : message.receivedAt;
+    timeElement.textContent = formatMailTime(receivedAt);
+    button.textContent = code || "No code";
+}
+
+function appendMailResult(container, index, account, password, code) {
     const row = document.createElement("div");
     row.className = "mail-result";
 
     const accountEl = document.createElement("div");
     accountEl.className = "mail-account";
-    accountEl.textContent = account;
+    accountEl.textContent = `${index}. ${account}`;
+
+    const timeEl = document.createElement("div");
+    timeEl.className = "mail-time";
+    timeEl.textContent = "-";
 
     const codeBtn = document.createElement("button");
     codeBtn.type = "button";
@@ -138,8 +261,8 @@ function appendMailResult(container, account, password, code) {
         codeBtn.textContent = "...";
         codeBtn.classList.add("loading");
 
-        const newCode = await getFirstMailLatestMessage(account, password);
-        codeBtn.textContent = newCode;
+        const newMessage = await getFirstMailLatestMessage(account, password);
+        setMailMessage(timeEl, codeBtn, newMessage);
         codeBtn.classList.remove("loading");
 
         refreshBtn.disabled = false;
@@ -147,12 +270,14 @@ function appendMailResult(container, account, password, code) {
     });
 
     row.appendChild(accountEl);
+    row.appendChild(timeEl);
     row.appendChild(codeBtn);
     row.appendChild(refreshBtn);
     container.appendChild(row);
 
     return {
         row,
+        timeEl,
         codeBtn,
         refreshBtn
     };

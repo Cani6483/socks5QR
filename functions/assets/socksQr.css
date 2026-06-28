@@ -220,8 +220,8 @@ button,
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 268px;
-    padding: 12px;
+    min-height: 238px;
+    padding: 6px 12px;
     border: 1px solid var(--line);
     border-radius: 8px;
     background: #fff;
@@ -284,6 +284,19 @@ button,
     font-size: 14px;
     line-height: 1.4;
     word-break: break-all;
+}
+
+.mail-time {
+    min-width: 150px;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: #475467;
+    font-size: 13px;
+    line-height: 1.2;
+    text-align: center;
+    white-space: nowrap;
+    background: #fff;
 }
 
 .mail-code,
@@ -366,6 +379,7 @@ button,
     }
 
     .mail-code,
+    .mail-time,
     .mail-refresh {
         width: 100%;
     }
