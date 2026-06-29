@@ -1,3 +1,5 @@
+const MAIL_CODE_VALID_MS = 30 * 60 * 1000;
+
 document.getElementById("generate").addEventListener("click", async function() {
     const input = document.getElementById("input").value.trim();
     const errorDiv = document.getElementById("error");
@@ -115,8 +117,10 @@ function extractMailMessage(responseText) {
     }
 
     const match = String(content).match(/(^|\D)(\d{8})(?!\d)/);
+    const code = getValidMailCode(match ? match[2] : "", receivedAt);
+
     return {
-        code: match ? match[2] : "No code",
+        code,
         receivedAt: receivedAt || null
     };
 }
@@ -210,6 +214,26 @@ function extractMailHeaderTime(text) {
 
     const receivedHeader = String(text).match(/(?:^|\n)Received:[\s\S]*?;\s*([^\n\r]+)/i);
     return receivedHeader ? parseMailTime(receivedHeader[1]) : null;
+}
+
+function getValidMailCode(code, receivedAt) {
+    if (!code) {
+        return "No code";
+    }
+
+    if (!receivedAt) {
+        return "时间无效";
+    }
+
+    return isMailCodeValid(receivedAt) ? code : "验证码已过期";
+}
+
+function isMailCodeValid(receivedAt) {
+    const date = parseMailTime(receivedAt);
+    if (!date) return false;
+
+    const age = Date.now() - date.getTime();
+    return age >= 0 && age <= MAIL_CODE_VALID_MS;
 }
 
 function formatMailTime(value) {
