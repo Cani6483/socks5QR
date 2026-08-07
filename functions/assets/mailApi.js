@@ -1,86 +1,86 @@
 const MAIL_CODE_VALID_MS = 30 * 60 * 1000;
+const mailtdDomains = new Set(["nqmo.com"]);
 
-document.getElementById("generate").addEventListener("click", async function() {
-    const input = document.getElementById("input").value.trim();
-    const errorDiv = document.getElementById("error");
-    const mailCodeDiv = document.getElementById("mailCode");
-    const format = document.getElementById("format");
-    const sel = format.options[format.selectedIndex].value;
+const els = {
+    mailInput: document.getElementById("mailInput"),
+    mailProvider: document.getElementById("mailProvider"),
+    codeStatus: document.getElementById("codeStatus"),
+    fetchCodes: document.getElementById("fetchCodes"),
+    codeResults: document.getElementById("codeResults")
+};
 
-    errorDiv.textContent = "";
-    mailCodeDiv.innerHTML = "";
+els.fetchCodes.addEventListener("click", fetchCodes);
+loadMailtdDomains();
 
-    const lines = input.split(/\r?\n/);
+async function fetchCodes() {
+    setStatus(els.codeStatus, "");
+    els.codeResults.innerHTML = "";
 
-    let resultIndex = 0;
-
-    for (const line of lines) {
-        const text = line.trim();
-        if (!text) continue;
-
-        const parts = text.replace(/\s+/g, " ").split(/[:|/\t ]/).filter(Boolean);
-        if (parts.length < 2) {
-            errorDiv.textContent = "Invalid format: email password, one per line";
-            continue;
-        }
-
-        const [account, password] = parts;
-        resultIndex += 1;
-
-        const result = appendMailResult(mailCodeDiv, resultIndex, account, password, "获取中...");
-        result.codeBtn.classList.add("loading");
-
-        if (sel === "firstmail") {
-            getFirstMailLatestMessage(account, password).then(function(message) {
-                setMailMessage(result.timeEl, result.codeBtn, message);
-                result.codeBtn.classList.remove("loading");
-            }).catch(function() {
-                result.codeBtn.textContent = "获取失败";
-                result.codeBtn.classList.remove("loading");
-            });
-        }
+    const accounts = parseMailboxLines(els.mailInput.value);
+    if (!accounts.length) {
+        setStatus(els.codeStatus, "Please enter email and password, one per line.");
+        return;
     }
-});
 
-async function getFirstMailLatestMessage(account, password) {
-    const data = {
-        email: account,
-        password: password,
-        folder: "INBOX"
-    };
+    setBusy(els.fetchCodes, true, "加载中...");
 
     try {
-        const response = await fetch(getMailProxyUrl(), {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(data)
+        const rows = accounts.map((account, index) => {
+            const provider = resolveProvider(account.email);
+            return {
+                account,
+                provider,
+                row: appendCodeResult(els.codeResults, index + 1, account.email, account.password, provider, "加载中...", "-")
+            };
         });
 
-        const text = await response.text();
-
-        if (response.status === 404) {
-            return {
-                code: "未收到邮件",
-                receivedAt: null
-            };
-        }
-
-        if (!response.ok) {
-            return {
-                code: `HTTP ${response.status}`,
-                receivedAt: null
-            };
-        }
-
-        return extractMailMessage(text);
-    } catch (error) {
-        return {
-            code: "Request failed",
-            receivedAt: null
-        };
+        await Promise.all(rows.map(item => refreshCodeRow(item.row, item.account.email, item.account.password, item.provider)
+            .catch(error => {
+                item.row.codeBtn.textContent = error.message || "Failed";
+                item.row.codeBtn.classList.remove("loading");
+                item.row.refreshBtn.disabled = false;
+                item.row.refreshBtn.textContent = "刷新";
+            })));
+    } finally {
+        setBusy(els.fetchCodes, false, "获取邮件验证码");
     }
+}
+
+async function loadMailtdDomains() {
+    try {
+        const data = await postMailProxy({ action: "domains" });
+        const domains = Array.isArray(data.domains) ? data.domains : [];
+        domains
+            .filter(item => item && item.domain && item.is_active !== false)
+            .forEach(item => mailtdDomains.add(normalizeDomain(item.domain)));
+    } catch (error) {
+        mailtdDomains.add("nqmo.com");
+    }
+}
+
+async function postMailProxy(payload) {
+    const response = await fetch(getMailProxyUrl(), {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+    });
+
+    const text = await response.text();
+    let data;
+
+    try {
+        data = text ? JSON.parse(text) : {};
+    } catch (error) {
+        data = { error: text || `HTTP ${response.status}` };
+    }
+
+    if (!response.ok || data.error) {
+        throw new Error(data.message || data.error || `HTTP ${response.status}`);
+    }
+
+    return data;
 }
 
 function getMailProxyUrl() {
@@ -93,7 +93,34 @@ function getMailProxyUrl() {
         return "/.netlify/functions/mailProxy";
     }
 
-    return "http://127.0.0.1:3000/mail/latest";
+    return "http://127.0.0.1:3000/mail";
+}
+
+function parseMailboxLines(text) {
+    return text
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .map(line => {
+            const parts = line.split(/\s*(?:----|\||,|\t|\s)\s*/).filter(Boolean);
+            return {
+                email: parts[0] || "",
+                password: parts.slice(1).join(" ") || ""
+            };
+        })
+        .filter(item => item.email.includes("@"));
+}
+
+function resolveProvider(email) {
+    return mailtdDomains.has(getEmailDomain(email)) ? "mailtd" : "firstmail";
+}
+
+function getEmailDomain(email) {
+    return normalizeDomain(String(email || "").split("@").pop() || "");
+}
+
+function normalizeDomain(domain) {
+    return String(domain || "").trim().toLowerCase().replace(/^@/, "");
 }
 
 function extractMailMessage(responseText) {
@@ -103,16 +130,12 @@ function extractMailMessage(responseText) {
     try {
         const data = JSON.parse(responseText);
         if (data && data.empty) {
-            return {
-                code: "未收到邮件",
-                receivedAt: null
-            };
+            return { code: "未获取到邮件", receivedAt: null };
         }
 
         content = collectText(data).join("\n");
         receivedAt = findMailTime(data) || extractMailHeaderTime(content);
-    } catch (e) {
-        content = responseText;
+    } catch (error) {
         receivedAt = extractMailHeaderTime(content);
     }
 
@@ -126,18 +149,9 @@ function extractMailMessage(responseText) {
 }
 
 function collectText(value) {
-    if (typeof value === "string") {
-        return [value];
-    }
-
-    if (Array.isArray(value)) {
-        return value.flatMap(collectText);
-    }
-
-    if (value && typeof value === "object") {
-        return Object.values(value).flatMap(collectText);
-    }
-
+    if (typeof value === "string") return [value];
+    if (Array.isArray(value)) return value.flatMap(collectText);
+    if (value && typeof value === "object") return Object.values(value).flatMap(collectText);
     return [];
 }
 
@@ -183,9 +197,7 @@ function findMailTime(value) {
 }
 
 function parseMailTime(value) {
-    if (value instanceof Date && !Number.isNaN(value.getTime())) {
-        return value;
-    }
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
 
     if (typeof value === "number") {
         const time = value < 10000000000 ? value * 1000 : value;
@@ -195,10 +207,7 @@ function parseMailTime(value) {
 
     if (typeof value === "string" && value.trim()) {
         const text = value.trim();
-        if (/^\d+$/.test(text)) {
-            return parseMailTime(Number(text));
-        }
-
+        if (/^\d+$/.test(text)) return parseMailTime(Number(text));
         const date = new Date(text);
         return Number.isNaN(date.getTime()) ? null : date;
     }
@@ -208,89 +217,78 @@ function parseMailTime(value) {
 
 function extractMailHeaderTime(text) {
     const dateHeader = String(text).match(/(?:^|\n)Date:\s*([^\n\r]+)/i);
-    if (dateHeader) {
-        return parseMailTime(dateHeader[1]);
-    }
-
+    if (dateHeader) return parseMailTime(dateHeader[1]);
     const receivedHeader = String(text).match(/(?:^|\n)Received:[\s\S]*?;\s*([^\n\r]+)/i);
     return receivedHeader ? parseMailTime(receivedHeader[1]) : null;
 }
 
 function getValidMailCode(code, receivedAt) {
-    if (!code) {
-        return "No code";
-    }
-
-    if (!receivedAt) {
-        return "时间无效";
-    }
-
-    return isMailCodeValid(receivedAt) ? code : "验证码已过期";
+    if (!code) return "No code";
+    if (!receivedAt) return "Invalid time";
+    return isMailCodeValid(receivedAt) ? code : "验证码已失效";
 }
 
 function isMailCodeValid(receivedAt) {
     const date = parseMailTime(receivedAt);
     if (!date) return false;
-
     const age = Date.now() - date.getTime();
     return age >= 0 && age <= MAIL_CODE_VALID_MS;
 }
 
-function formatMailTime(value) {
-    const date = parseMailTime(value);
-    if (!date) return "-";
+async function refreshCodeRow(row, email, password, provider) {
+    row.refreshBtn.disabled = true;
+    row.refreshBtn.textContent = "加载";
+    row.codeBtn.textContent = "加载中...";
+    row.codeBtn.classList.add("loading");
 
-    const pad = number => String(number).padStart(2, "0");
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    try {
+        const selectedProvider = provider || resolveProvider(email);
+        const data = await postMailProxy({
+            action: selectedProvider === "mailtd" ? "mailtdLatest" : "firstmailLatest",
+            email,
+            password
+        });
+        const message = extractMailMessage(JSON.stringify(data));
+        setMailCode(row.timeEl, row.codeBtn, message);
+    } finally {
+        row.codeBtn.classList.remove("loading");
+        row.refreshBtn.disabled = false;
+        row.refreshBtn.textContent = "刷新";
+    }
 }
 
-function setMailMessage(timeElement, button, message) {
-    const code = typeof message === "string" ? message : message.code;
-    const receivedAt = typeof message === "string" ? null : message.receivedAt;
-    timeElement.textContent = formatMailTime(receivedAt);
-    button.textContent = code || "No code";
-}
-
-function appendMailResult(container, index, account, password, code) {
+function appendCodeResult(container, index, account, password, provider, code, time) {
     const row = document.createElement("div");
     row.className = "mail-result";
 
     const accountEl = document.createElement("div");
     accountEl.className = "mail-account";
-    accountEl.textContent = `${index}. ${account}`;
+    accountEl.textContent = `${index}. ${account} (${provider === "mailtd" ? "Mail.td" : "firstmail"})`;
 
     const timeEl = document.createElement("div");
     timeEl.className = "mail-time";
-    timeEl.textContent = "-";
+    timeEl.textContent = time;
 
     const codeBtn = document.createElement("button");
     codeBtn.type = "button";
     codeBtn.className = "mail-code";
     codeBtn.textContent = code;
-    codeBtn.title = "Click to copy";
-
-    codeBtn.addEventListener("click", function() {
-        copyText(codeBtn.textContent, codeBtn);
-    });
+    codeBtn.addEventListener("click", () => copyText(codeBtn.textContent, codeBtn));
 
     const refreshBtn = document.createElement("button");
     refreshBtn.type = "button";
     refreshBtn.className = "mail-refresh";
     refreshBtn.textContent = "刷新";
-    refreshBtn.title = "只刷新这个邮箱";
-
-    refreshBtn.addEventListener("click", async function() {
-        refreshBtn.disabled = true;
-        refreshBtn.textContent = "获取中";
-        codeBtn.textContent = "...";
-        codeBtn.classList.add("loading");
-
-        const newMessage = await getFirstMailLatestMessage(account, password);
-        setMailMessage(timeEl, codeBtn, newMessage);
-        codeBtn.classList.remove("loading");
-
-        refreshBtn.disabled = false;
-        refreshBtn.textContent = "刷新";
+    refreshBtn.title = "Refresh this mailbox only";
+    refreshBtn.addEventListener("click", async () => {
+        try {
+            await refreshCodeRow({ timeEl, codeBtn, refreshBtn }, account, password, resolveProvider(account));
+        } catch (error) {
+            codeBtn.textContent = error.message || "Failed";
+            codeBtn.classList.remove("loading");
+            refreshBtn.disabled = false;
+            refreshBtn.textContent = "刷新";
+        }
     });
 
     row.appendChild(accountEl);
@@ -299,18 +297,34 @@ function appendMailResult(container, index, account, password, code) {
     row.appendChild(refreshBtn);
     container.appendChild(row);
 
-    return {
-        row,
-        timeEl,
-        codeBtn,
-        refreshBtn
-    };
+    return { row, timeEl, codeBtn, refreshBtn };
+}
+
+function setMailCode(timeElement, button, message) {
+    timeElement.textContent = formatMailTime(message.receivedAt);
+    button.textContent = message.code || "No code";
+}
+
+function formatMailTime(value) {
+    const date = parseMailTime(value);
+    if (!date) return "-";
+    const pad = number => String(number).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function setBusy(button, busy, text) {
+    button.disabled = busy;
+    button.textContent = text;
+}
+
+function setStatus(element, text, type = "error") {
+    element.textContent = text;
+    element.classList.toggle("success", type === "success");
 }
 
 async function copyText(text, button) {
     try {
         await navigator.clipboard.writeText(text);
-        showCopied(button);
     } catch (error) {
         const input = document.createElement("textarea");
         input.value = text;
@@ -318,16 +332,13 @@ async function copyText(text, button) {
         input.select();
         document.execCommand("copy");
         document.body.removeChild(input);
-        showCopied(button);
     }
-}
 
-function showCopied(button) {
     const oldText = button.textContent;
     button.textContent = "已复制";
     button.classList.add("copied");
 
-    setTimeout(function() {
+    setTimeout(() => {
         button.textContent = oldText;
         button.classList.remove("copied");
     }, 1200);

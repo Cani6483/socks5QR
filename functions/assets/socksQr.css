@@ -125,6 +125,8 @@ label {
 
 textarea,
 input[type="text"],
+input[type="number"],
+input[type="password"],
 select {
     width: 100%;
     border: 1px solid var(--line-strong);
@@ -146,13 +148,17 @@ textarea {
 }
 
 select,
-input[type="text"] {
+input[type="text"],
+input[type="number"],
+input[type="password"] {
     height: 46px;
     padding: 0 14px;
 }
 
 textarea:focus,
 input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="password"]:focus,
 select:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
@@ -200,6 +206,97 @@ button,
     color: var(--danger);
     font-size: 13px;
     font-weight: 700;
+}
+
+.error.success {
+    color: var(--success);
+}
+
+.mail-app-shell {
+    width: min(100% - 32px, 1040px);
+}
+
+.notice {
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    color: #1e3a8a;
+    font-size: 13px;
+    line-height: 1.6;
+    background: #eff6ff;
+}
+
+.two-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.inline-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+}
+
+.secondary-action {
+    min-height: 46px;
+    padding: 0 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    color: #344054;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    background: #fff;
+}
+
+.secondary-action:hover {
+    background: var(--soft-blue);
+}
+
+.secondary-action:disabled,
+.primary-action:disabled,
+.mail-code:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+.tab-bar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    padding: 4px;
+    margin: 6px 0 22px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.tab-button {
+    min-height: 42px;
+    border-radius: 6px;
+    color: #475467;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    background: transparent;
+}
+
+.tab-button:hover {
+    color: var(--primary-dark);
+    background: var(--soft-blue);
+}
+
+.tab-button.active {
+    color: #fff;
+    background: var(--primary);
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
 }
 
 .result-grid {
@@ -266,6 +363,24 @@ button,
     margin-top: 24px;
 }
 
+.bulk-output {
+    width: 100%;
+    min-height: 180px;
+    padding: 14px 16px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre;
+    background: #fff;
+}
+
+.compact-action {
+    margin-top: 12px;
+}
+
 .mail-result {
     display: flex;
     align-items: center;
@@ -275,6 +390,11 @@ button,
     border: 1px solid var(--line);
     border-radius: 8px;
     background: #f8fafc;
+}
+
+.mail-result.failed {
+    border-color: #fecaca;
+    background: #fff1f2;
 }
 
 .mail-account {
@@ -347,6 +467,87 @@ button,
     opacity: 0.65;
 }
 
+.message-group {
+    padding: 12px;
+    margin-bottom: 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.message-group.failed {
+    border-color: #fecaca;
+    background: #fff1f2;
+}
+
+.message-group-header,
+.message-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.message-count {
+    flex: 0 0 auto;
+    padding: 6px 10px;
+    border-radius: 999px;
+    color: #475467;
+    font-size: 12px;
+    font-weight: 700;
+    background: #fff;
+}
+
+.message-empty {
+    padding: 14px 0 4px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.message-item {
+    padding: 12px;
+    margin-top: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+}
+
+.message-topline strong {
+    min-width: 0;
+    font-size: 15px;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.message-topline span,
+.message-meta {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.message-topline span {
+    flex: 0 0 auto;
+}
+
+.message-meta {
+    margin-top: 6px;
+    word-break: break-all;
+}
+
+.message-preview {
+    max-height: 180px;
+    margin: 10px 0 0;
+    padding: 10px;
+    overflow: auto;
+    border-radius: 6px;
+    color: #344054;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    background: #f8fafc;
+}
+
 @media (max-width: 680px) {
     .app-shell {
         width: min(100% - 24px, 860px);
@@ -369,6 +570,21 @@ button,
 
     h1 {
         font-size: 24px;
+    }
+
+    .two-columns,
+    .inline-control {
+        grid-template-columns: 1fr;
+    }
+
+    .tab-bar {
+        grid-template-columns: 1fr;
+    }
+
+    .message-group-header,
+    .message-topline {
+        align-items: flex-start;
+        flex-direction: column;
     }
 }
 

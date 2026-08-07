@@ -8,6 +8,16 @@
     status = 200
 
 [[redirects]]
+    from = "/mailapi"
+    to = "/mailApi.html"
+    status = 200
+
+[[redirects]]
+    from = "/mailApi"
+    to = "/mailApi.html"
+    status = 200
+
+[[redirects]]
     from = "/functions/socks5QR.html"
     to = "/socks5QR.html"
     status = 301

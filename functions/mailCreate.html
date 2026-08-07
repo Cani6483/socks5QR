@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mail.td 创建邮箱</title>
+    <link rel="stylesheet" type="text/css" href="./assets/socksQr.css">
+</head>
+<body>
+    <main class="app-shell mail-app-shell">
+        <section class="tool-panel">
+            <header class="page-header">
+                <div>
+                    <p class="eyebrow">Mail.td Toolkit</p>
+                    <h1>Mail.td 创建邮箱</h1>
+                </div>
+            </header>
+
+            <div class="form-grid two-columns">
+                <div class="form-group">
+                    <label for="domain">邮箱后缀</label>
+                    <div class="inline-control">
+                        <select id="domain">
+                            <option value="nqmo.com" selected>@nqmo.com</option>
+                        </select>
+                        <button id="loadDomains" class="secondary-action" type="button">刷新域名</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="createCount">创建数量</label>
+                    <input id="createCount" type="number" min="1" max="200" value="5">
+                </div>
+            </div>
+
+            <div class="form-grid two-columns">
+                <div class="form-group">
+                    <label for="prefix">邮箱前缀</label>
+                    <input id="prefix" type="text" placeholder="数量为 1 时直接使用；批量时自动追加随机字符">
+                </div>
+                <div class="form-group">
+                    <label for="fixedPassword">统一密码</label>
+                    <input id="fixedPassword" type="text" placeholder="留空则每个邮箱随机密码">
+                </div>
+            </div>
+
+            <button id="createAccounts" class="primary-action" type="button">创建邮箱</button>
+            <div id="createStatus" class="error" aria-live="polite"></div>
+
+            <div class="mail-results">
+                <textarea id="createOutput" class="bulk-output" rows="10" readonly placeholder="创建成功后会逐行显示：邮箱 密码"></textarea>
+                <button id="copyCreated" class="primary-action compact-action" type="button">复制全部</button>
+            </div>
+        </section>
+    </main>
+
+    <script src="./assets/mailCreate.js"></script>
+</body>
+</html>
