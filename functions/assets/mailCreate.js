@@ -90,7 +90,7 @@ async function createAccounts() {
                 appendOutputLine(`FAILED ${result.address} ${result.password} ${result.error || "unknown_error"}`);
             }
 
-            setStatus(els.createStatus, `Created ${okCount}/${count}, failed ${failCount}.`, failCount ? "error" : "success");
+            setStatus(els.createStatus, `创建成功 ${okCount}/${count}, 失败 ${failCount}.`, failCount ? "error" : "success");
         }
     } finally {
         setBusy(els.createAccounts, false, "创建邮箱");
@@ -232,7 +232,7 @@ function randomLocalPart(length) {
 }
 
 function generatePassword() {
-    return randomString("ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%", 16);
+    return randomString("ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%", 10);
 }
 
 function randomString(chars, length) {

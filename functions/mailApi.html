@@ -23,7 +23,7 @@
             <div class="form-group">
                 <label for="mailInput">邮箱账号</label>
                 <textarea id="mailInput" rows="10" placeholder="例：user@example.com password&#10;一行一条"></textarea>
-                <p class="field-hint">格式：邮箱账号 邮箱密码。系统会按邮箱后缀自动选择 API，Mail.td 只读取第一封邮件。</p>
+                <p class="field-hint">格式：邮箱账号 邮箱密码。系统会按邮箱自动选择 API，firstmail / Mail.td 。</p>
                 <div id="codeStatus" class="error"></div>
             </div>
 
@@ -31,7 +31,7 @@
                 <div class="form-group">
                     <label for="mailProvider">邮件 API</label>
                     <select id="mailProvider">
-                        <option value="auto">自动识别邮箱后缀</option>
+                        <option value="auto">自动识别邮箱</option>
                     </select>
                 </div>
             </div>

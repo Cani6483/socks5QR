@@ -213,7 +213,7 @@ button,
 }
 
 .mail-app-shell {
-    width: min(100% - 32px, 1040px);
+    width: min(100% - 32px, 860px);
 }
 
 .notice {

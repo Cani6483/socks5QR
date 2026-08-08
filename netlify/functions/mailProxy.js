@@ -76,7 +76,7 @@ async function fetchFirstmailLatest(payload) {
     if (response.status === 404) {
         return {
             empty: true,
-            message: "No mail"
+            message: "未获取到邮件"
         };
     }
 
@@ -109,8 +109,8 @@ async function fetchMailtdLatest(payload) {
 
     if (password) {
         try {
-            const mailboxToken = await loginMailtdMailbox(email, password);
-            return await fetchMailtdLatestWithToken(email, mailboxToken);
+            const mailboxSession = await loginMailtdMailbox(email, password);
+            return await fetchMailtdLatestWithToken(mailboxSession.id || email, mailboxSession.token);
         } catch (error) {
             attempts.push(`mailbox_login:${error.message}`);
         }
@@ -167,7 +167,11 @@ async function loginMailtdMailbox(email, password) {
                 throw httpError(502, "missing_mailbox_token", "Mailbox login did not return a token.");
             }
 
-            return token;
+            return {
+                id: data.id,
+                address: data.address || email,
+                token
+            };
         } catch (error) {
             lastError = error;
         }
@@ -287,7 +291,7 @@ async function mailtdRequest(path, options = {}) {
     };
 
     if (options.authRequired !== false) {
-        headers.Authorization = `Bearer ${MAILTD_API_TOKEN}`;
+        headers.Authorization = `Bearer ${options.token || MAILTD_API_TOKEN}`;
     }
 
     const response = await fetch(`${MAILTD_BASE_URL}${path}`, {
