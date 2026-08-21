@@ -6,10 +6,12 @@ const els = {
     mailProvider: document.getElementById("mailProvider"),
     codeStatus: document.getElementById("codeStatus"),
     fetchCodes: document.getElementById("fetchCodes"),
+    copyApiLinks: document.getElementById("copyApiLinks"),
     codeResults: document.getElementById("codeResults")
 };
 
 els.fetchCodes.addEventListener("click", fetchCodes);
+els.copyApiLinks.addEventListener("click", copyApiLinks);
 loadMailtdDomains();
 
 async function fetchCodes() {
@@ -44,6 +46,19 @@ async function fetchCodes() {
     } finally {
         setBusy(els.fetchCodes, false, "获取邮件验证码");
     }
+}
+
+async function copyApiLinks() {
+    const accounts = parseMailboxLines(els.mailInput.value);
+
+    if (!accounts.length) {
+        setStatus(els.codeStatus, "请输入邮箱账号和密码，一行一个。");
+        return;
+    }
+
+    const links = accounts.map(account => buildMailViewUrl(account.email, account.password));
+    await copyText(links.join("\n"), els.copyApiLinks);
+    setStatus(els.codeStatus, `已复制 ${links.length} 个API链接。`, "success");
 }
 
 async function loadMailtdDomains() {
@@ -94,6 +109,24 @@ function getMailProxyUrl() {
     }
 
     return "http://127.0.0.1:3000/mail";
+}
+
+function buildMailViewUrl(email, password) {
+    const isLocalPage = location.protocol === "file:" ||
+        location.hostname === "localhost" ||
+        location.hostname === "127.0.0.1";
+    const path = isLocalPage ? "./mailView.html" : "/m";
+    const account = password
+        ? `${encodeShortParam(email)}~${encodeShortParam(password)}`
+        : encodeShortParam(email);
+    const url = new URL(path, location.href);
+    url.search = `?a=${account}`;
+
+    return url.href;
+}
+
+function encodeShortParam(value) {
+    return encodeURIComponent(value).replace(/%40/g, "@");
 }
 
 function parseMailboxLines(text) {
@@ -261,9 +294,13 @@ function appendCodeResult(container, index, account, password, provider, code, t
     const row = document.createElement("div");
     row.className = "mail-result";
 
-    const accountEl = document.createElement("div");
+    const apiLink = buildMailViewUrl(account, password);
+    const accountEl = document.createElement("button");
+    accountEl.type = "button";
     accountEl.className = "mail-account";
+    accountEl.title = apiLink;
     accountEl.textContent = `${index}. ${account} (${provider === "mailtd" ? "Mail.td" : "firstmail"})`;
+    accountEl.addEventListener("click", () => copyText(apiLink, accountEl));
 
     const timeEl = document.createElement("div");
     timeEl.className = "mail-time";

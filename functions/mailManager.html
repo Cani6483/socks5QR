@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>邮件管理</title>
+    <link rel="stylesheet" type="text/css" href="./assets/socksQr.css">
+</head>
+<body class="mail-manager-body">
+    <main class="mail-manager-shell">
+        <section class="tool-panel mail-manager-panel">
+            <header class="page-header">
+                <div>
+                    <p class="eyebrow">Mail Manager</p>
+                    <h1>批量邮件管理</h1>
+                </div>
+                <nav class="page-nav" aria-label="Mail pages">
+                    <a class="page-nav-link" href="./mailCreate.html">创建邮箱</a>
+                    <a class="page-nav-link active" href="./mailManager.html">邮件管理</a>
+                </nav>
+            </header>
+
+            <div class="manager-account-row">
+                <div class="form-group manager-account-input">
+                    <label for="accountInput">邮箱账号</label>
+                    <textarea id="accountInput" rows="10" placeholder="一行一个：email@example.com password&#10;支持 email@example.com----password &#10;或 email@example.com|password"></textarea>
+                    <p class="field-hint">系统会按邮箱后缀自动选择 firstmail 或 Mail.td。选择左侧账号后加载该账号全部邮件。</p>
+                </div>
+
+                <div class="manager-api-panel">
+                    <div class="manager-api-title">API链接</div>
+                    <div class="mail-link-actions">
+                        <button id="generateManagerApiLinks" class="secondary-action" type="button">生成API链接</button>
+                        <button id="copyManagerApiLinks" class="secondary-action" type="button">复制所有链接</button>
+                    </div>
+                    <div id="managerApiLinks" class="api-link-list" aria-live="polite"></div>
+                </div>
+            </div>
+
+            <button id="loadAccounts" class="primary-action compact-action" type="button">加载账号</button>
+            <div id="managerStatus" class="error" aria-live="polite"></div>
+
+            <section class="mail-manager-layout" aria-label="邮件管理">
+                <aside class="manager-column account-column">
+                    <div class="manager-column-title">账号</div>
+                    <div id="accountList" class="manager-list"></div>
+                </aside>
+
+                <section class="manager-column message-column">
+                    <div class="manager-column-title">邮件列表</div>
+                    <div id="messageList" class="manager-list"></div>
+                </section>
+
+                <section class="manager-column detail-column">
+                    <div class="manager-column-title">邮件详情</div>
+                    <article id="messageDetail" class="manager-detail empty-state">请选择一封邮件</article>
+                </section>
+            </section>
+        </section>
+    </main>
+
+    <script src="./assets/mailManager.js"></script>
+</body>
+</html>

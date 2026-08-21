@@ -9,12 +9,17 @@ const els = {
     createAccounts: document.getElementById("createAccounts"),
     createStatus: document.getElementById("createStatus"),
     createOutput: document.getElementById("createOutput"),
-    copyCreated: document.getElementById("copyCreated")
+    copyCreated: document.getElementById("copyCreated"),
+    generateApiLinks: document.getElementById("generateApiLinks"),
+    apiLinks: document.getElementById("apiLinks")
 };
+
+const createdAccounts = [];
 
 els.loadDomains.addEventListener("click", loadDomains);
 els.createAccounts.addEventListener("click", createAccounts);
 els.copyCreated.addEventListener("click", () => copyText(els.createOutput.value, els.copyCreated));
+els.generateApiLinks.addEventListener("click", generateApiLinks);
 
 loadDomains();
 
@@ -57,6 +62,8 @@ function appendDomainOption(domain, proOnly = false) {
 async function createAccounts() {
     setStatus(els.createStatus, "");
     els.createOutput.value = "";
+    createdAccounts.length = 0;
+    renderApiLinks([]);
 
     const domain = (els.domain.value || "nqmo.com").trim();
     const count = readNumber(els.createCount, 1, 200);
@@ -84,7 +91,12 @@ async function createAccounts() {
 
             if (result.ok) {
                 okCount += 1;
+                createdAccounts.push({
+                    email: result.address,
+                    password: result.password
+                });
                 appendOutputLine(`${result.address} ${result.password}`);
+                renderApiLinks(createdAccounts);
             } else {
                 failCount += 1;
                 appendOutputLine(`FAILED ${result.address} ${result.password} ${result.error || "unknown_error"}`);
@@ -141,6 +153,70 @@ function appendOutputLine(line) {
         ? `${els.createOutput.value}\n${line}`
         : line;
     els.createOutput.scrollTop = els.createOutput.scrollHeight;
+}
+
+function generateApiLinks() {
+    const accounts = createdAccounts.length ? createdAccounts : parseOutputAccounts();
+    renderApiLinks(accounts);
+
+    if (!accounts.length) {
+        setStatus(els.createStatus, "没有可生成链接的邮箱账号。");
+        return;
+    }
+
+    setStatus(els.createStatus, `已生成 ${accounts.length} 个API链接。`, "success");
+}
+
+function renderApiLinks(accounts) {
+    els.apiLinks.innerHTML = "";
+
+    if (!accounts.length) {
+        return;
+    }
+
+    accounts.forEach((account, index) => {
+        const item = document.createElement("button");
+        const link = buildMailViewUrl(account.email, account.password);
+        item.type = "button";
+        item.className = "api-link-item";
+        item.dataset.link = link;
+        item.textContent = `${index + 1}. ${link}`;
+        item.addEventListener("click", () => copyText(link, item));
+        els.apiLinks.appendChild(item);
+    });
+}
+
+function parseOutputAccounts() {
+    return els.createOutput.value
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(line => line && !line.startsWith("FAILED "))
+        .map(line => {
+            const parts = line.split(/\s+/).filter(Boolean);
+            return {
+                email: parts[0] || "",
+                password: parts.slice(1).join(" ") || ""
+            };
+        })
+        .filter(item => item.email.includes("@"));
+}
+
+function buildMailViewUrl(email, password) {
+    const isLocalPage = location.protocol === "file:" ||
+        location.hostname === "localhost" ||
+        location.hostname === "127.0.0.1";
+    const path = isLocalPage ? "./mailView.html" : "/m";
+    const account = password
+        ? `${encodeShortParam(email)}~${encodeShortParam(password)}`
+        : encodeShortParam(email);
+    const url = new URL(path, location.href);
+    url.search = `?a=${account}`;
+
+    return url.href;
+}
+
+function encodeShortParam(value) {
+    return encodeURIComponent(value).replace(/%40/g, "@");
 }
 
 async function postMailProxy(payload) {

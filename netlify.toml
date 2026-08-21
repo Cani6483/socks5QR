@@ -18,6 +18,41 @@
     status = 200
 
 [[redirects]]
+    from = "/mailcreate"
+    to = "/mailCreate.html"
+    status = 200
+
+[[redirects]]
+    from = "/mailCreate"
+    to = "/mailCreate.html"
+    status = 200
+
+[[redirects]]
+    from = "/mailmanager"
+    to = "/mailManager.html"
+    status = 200
+
+[[redirects]]
+    from = "/mailview"
+    to = "/mailView.html"
+    status = 200
+
+[[redirects]]
+    from = "/mailView"
+    to = "/mailView.html"
+    status = 200
+
+[[redirects]]
+    from = "/boobar"
+    to = "/mailView.html"
+    status = 200
+
+[[redirects]]
+    from = "/m"
+    to = "/mailView.html"
+    status = 200
+
+[[redirects]]
     from = "/functions/socks5QR.html"
     to = "/socks5QR.html"
     status = 301
@@ -25,6 +60,21 @@
 [[redirects]]
     from = "/functions/mailApi.html"
     to = "/mailApi.html"
+    status = 301
+
+[[redirects]]
+    from = "/functions/mailCreate.html"
+    to = "/mailCreate.html"
+    status = 301
+
+[[redirects]]
+    from = "/functions/mailManager.html"
+    to = "/mailManager.html"
+    status = 301
+
+[[redirects]]
+    from = "/functions/mailView.html"
+    to = "/mailView.html"
     status = 301
 
 [[redirects]]
@@ -40,4 +90,19 @@
 [[redirects]]
     from = "/functions/assets/mailApi.js"
     to = "/assets/mailApi.js"
+    status = 301
+
+[[redirects]]
+    from = "/functions/assets/mailCreate.js"
+    to = "/assets/mailCreate.js"
+    status = 301
+
+[[redirects]]
+    from = "/functions/assets/mailManager.js"
+    to = "/assets/mailManager.js"
+    status = 301
+
+[[redirects]]
+    from = "/functions/assets/mailView.js"
+    to = "/assets/mailView.js"
     status = 301

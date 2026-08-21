@@ -1,13 +1,16 @@
 const http = require("http");
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 
 const MAILTD_BASE_URL = "https://api.mail.td";
 const MAILTD_API_TOKEN = process.env.MAILTD_API_TOKEN || "td_8b2d277088cad4179c89deb467b26fc32aecc67273b178c074e59574e9a4dfbe";
 const FIRSTMAIL_API_KEY = process.env.FIRSTMAIL_API_KEY || "gItjn0iQ3zHIEqWapS9AIksprmgj1NGwjz40WI2xQGwOHymUh-qCE-X20WH4IYB0";
+const LOCAL_STATIC_ROOT = path.resolve(__dirname, "../../functions");
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization"
 };
 
@@ -44,6 +47,10 @@ async function handleAction(payload) {
             return createAccount(payload);
         case "createAccounts":
             return createAccounts(payload);
+        case "mailManagerMessages":
+            return fetchManagerMessages(payload);
+        case "mailManagerMessageDetail":
+            return fetchManagerMessageDetail(payload);
         default:
             throw httpError(400, "invalid_action", "Unknown mail action.");
     }
@@ -97,6 +104,15 @@ async function fetchMailtdLatest(payload) {
 
     const attempts = [];
 
+    if (password) {
+        try {
+            const mailboxSession = await loginMailtdMailbox(email, password);
+            return await fetchMailtdLatestWithToken(mailboxSession.id || email, mailboxSession.token);
+        } catch (error) {
+            attempts.push(`mailbox_login:${error.message}`);
+        }
+    }
+
     try {
         return await fetchMailtdLatestWithToken(email, MAILTD_API_TOKEN);
     } catch (error) {
@@ -108,13 +124,6 @@ async function fetchMailtdLatest(payload) {
     }
 
     if (password) {
-        try {
-            const mailboxSession = await loginMailtdMailbox(email, password);
-            return await fetchMailtdLatestWithToken(mailboxSession.id || email, mailboxSession.token);
-        } catch (error) {
-            attempts.push(`mailbox_login:${error.message}`);
-        }
-
         try {
             const account = await createMailtdAccountWithRetry({
                 address: email,
@@ -217,6 +226,242 @@ async function createAccounts(payload) {
     }
 
     return { results };
+}
+
+async function fetchManagerMessages(payload) {
+    const email = String(payload.email || "").trim().toLowerCase();
+    const password = String(payload.password || "").trim();
+    const provider = String(payload.provider || "").trim() || resolveProviderFromEmail(email);
+
+    if (!email || !email.includes("@")) {
+        throw httpError(400, "invalid_email", "Invalid email address.");
+    }
+
+    if (provider === "mailtd") {
+        return fetchMailtdAllMessages(email, password);
+    }
+
+    return fetchFirstmailMessages(email, password);
+}
+
+async function fetchManagerMessageDetail(payload) {
+    const email = String(payload.email || "").trim().toLowerCase();
+    const password = String(payload.password || "").trim();
+    const messageId = String(payload.messageId || "").trim();
+    const provider = String(payload.provider || "").trim() || resolveProviderFromEmail(email);
+    const fallbackMessage = payload.message && typeof payload.message === "object" ? payload.message : null;
+
+    if (!email || !email.includes("@")) {
+        throw httpError(400, "invalid_email", "Invalid email address.");
+    }
+
+    if (!messageId && fallbackMessage) {
+        return normalizeMessageDetail(provider, fallbackMessage);
+    }
+
+    if (provider === "mailtd") {
+        return fetchMailtdMessageDetail(email, password, messageId);
+    }
+
+    return fetchFirstmailMessageDetail(email, password, messageId, fallbackMessage);
+}
+
+async function fetchMailtdAllMessages(email, password) {
+    const session = await getMailtdReadSession(email, password);
+    const messages = [];
+
+    for (let page = 1; page <= 20; page += 1) {
+        const data = await mailtdRequest(`/api/accounts/${encodeURIComponent(session.accountId)}/messages?page=${page}`, {
+            token: session.token
+        });
+        const pageMessages = Array.isArray(data.messages) ? data.messages : [];
+        messages.push(...pageMessages.map(message => normalizeMessageSummary("mailtd", message, {
+            accountId: session.accountId
+        })));
+
+        if (pageMessages.length < 30) {
+            break;
+        }
+    }
+
+    return {
+        provider: "mailtd",
+        accountId: session.accountId,
+        messages
+    };
+}
+
+async function fetchMailtdMessageDetail(email, password, messageId) {
+    const session = await getMailtdReadSession(email, password);
+    const data = await mailtdRequest(`/api/accounts/${encodeURIComponent(session.accountId)}/messages/${encodeURIComponent(messageId)}`, {
+        token: session.token
+    });
+
+    return normalizeMessageDetail("mailtd", data);
+}
+
+async function getMailtdReadSession(email, password) {
+    if (password) {
+        try {
+            const mailboxSession = await loginMailtdMailbox(email, password);
+            return {
+                provider: "mailtd",
+                accountId: mailboxSession.id || email,
+                token: mailboxSession.token
+            };
+        } catch (error) {
+            // Fall back to the configured Pro token below.
+        }
+    }
+
+    try {
+        await mailtdRequest(`/api/accounts/${encodeURIComponent(email)}/messages?page=1`, {
+            token: MAILTD_API_TOKEN
+        });
+        return {
+            provider: "mailtd",
+            accountId: email,
+            token: MAILTD_API_TOKEN
+        };
+    } catch (error) {
+        if (!shouldTryMailboxFallback(error) || !password) {
+            throw error;
+        }
+    }
+
+    const mailboxSession = await loginMailtdMailbox(email, password);
+    return {
+        provider: "mailtd",
+        accountId: mailboxSession.id || email,
+        token: mailboxSession.token
+    };
+}
+
+async function fetchFirstmailMessages(email, password) {
+    if (!password) {
+        throw httpError(400, "missing_mailbox", "Email and password are required.");
+    }
+
+    const body = {
+        email,
+        password,
+        limit: 100,
+        folder: "INBOX"
+    };
+    const candidates = [
+        "/api/v1/email/messages",
+        "/api/v1/email/messages/",
+        "/api/v1/email/messages/list",
+        "/api/v1/email/messages/all"
+    ];
+    const errors = [];
+
+    for (const path of candidates) {
+        try {
+            const data = await firstmailRequest(path, body);
+            const messages = normalizeMessageArray(data);
+
+            if (messages.length) {
+                return {
+                    provider: "firstmail",
+                    messages: messages.map(message => normalizeMessageSummary("firstmail", message))
+                };
+            }
+        } catch (error) {
+            errors.push(`${path}:${error.message}`);
+        }
+    }
+
+    try {
+        const latest = await fetchFirstmailLatest({ email, password });
+        if (latest && !latest.empty) {
+            return {
+                provider: "firstmail",
+                messages: [normalizeMessageSummary("firstmail", latest, { syntheticId: "latest" })]
+            };
+        }
+
+        return {
+            provider: "firstmail",
+            messages: []
+        };
+    } catch (error) {
+        errors.push(`latest:${error.message}`);
+    }
+
+    throw httpError(502, "firstmail_messages_failed", `firstmail message list failed. ${errors.join(" | ")}`);
+}
+
+async function fetchFirstmailMessageDetail(email, password, messageId, fallbackMessage) {
+    if (!password) {
+        throw httpError(400, "missing_mailbox", "Email and password are required.");
+    }
+
+    if (!messageId || messageId === "latest") {
+        const latest = await fetchFirstmailLatest({ email, password });
+        return normalizeMessageDetail("firstmail", latest);
+    }
+
+    if (fallbackMessage && hasMessageBody(fallbackMessage)) {
+        return normalizeMessageDetail("firstmail", fallbackMessage);
+    }
+
+    const candidates = [
+        { path: `/api/v1/email/messages/${encodeURIComponent(messageId)}`, body: { email, password, folder: "INBOX" } },
+        { path: "/api/v1/email/message", body: { email, password, folder: "INBOX", id: messageId } },
+        { path: "/api/v1/email/messages/detail", body: { email, password, folder: "INBOX", id: messageId } }
+    ];
+
+    for (const candidate of candidates) {
+        try {
+            const data = await firstmailRequest(candidate.path, candidate.body);
+            return normalizeMessageDetail("firstmail", data);
+        } catch (error) {
+            // The public API page requires login, so keep trying known endpoint shapes.
+        }
+    }
+
+    if (fallbackMessage) {
+        return normalizeMessageDetail("firstmail", fallbackMessage);
+    }
+
+    throw httpError(404, "firstmail_message_not_found", "firstmail message detail was not found.");
+}
+
+function hasMessageBody(message) {
+    return Boolean(message && (
+        message.text_body ||
+        message.textBody ||
+        message.html_body ||
+        message.htmlBody ||
+        message.text ||
+        message.body ||
+        message.content ||
+        message.html
+    ));
+}
+
+async function firstmailRequest(path, body) {
+    const response = await fetch(`https://firstmail.ltd${path}`, {
+        method: "POST",
+        headers: {
+            "X-API-KEY": FIRSTMAIL_API_KEY,
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${FIRSTMAIL_API_KEY}`
+        },
+        body: JSON.stringify(body)
+    });
+    const data = await readJsonResponse(response);
+
+    if (response.status === 404) {
+        throw httpError(404, "firstmail_not_found", data.message || "firstmail HTTP 404");
+    }
+
+    if (!response.ok) {
+        throw httpError(response.status, data.error || "firstmail_error", data.message || `firstmail HTTP ${response.status}`);
+    }
+
+    return data;
 }
 
 async function createGeneratedAccount(options) {
@@ -352,6 +597,128 @@ function isConflictError(error) {
     );
 }
 
+function resolveProviderFromEmail(email) {
+    const domain = String(email || "").split("@").pop().toLowerCase();
+    return isMailtdDomain(domain) ? "mailtd" : "firstmail";
+}
+
+function isMailtdDomain(domain) {
+    return [
+        "nqmo.com",
+        "end.tw",
+        "uuf.me",
+        "6n9.net",
+        "sugtbt.com",
+        "qabq.com"
+    ].includes(String(domain || "").toLowerCase());
+}
+
+function normalizeMessageArray(data) {
+    data = unwrapApiPayload(data);
+
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.messages)) return data.messages;
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data.items)) return data.items;
+    if (data.message && typeof data.message === "object") return [data.message];
+    if (data.id || data.subject || data.text_body || data.html_body || data.body_text || data.body_html || data.body) return [data];
+    return [];
+}
+
+function normalizeMessageSummary(provider, message, options = {}) {
+    message = unwrapMessagePayload(message);
+
+    const id = String(message.id || message.message_id || message.messageId || message.uid || options.syntheticId || stableMessageId(message));
+    const createdAt = message.created_at || message.createdAt || message.received_at || message.receivedAt || message.date || message.time || "";
+    const from = message.from || message.sender || message.sender_email || message.from_email || "";
+    const preview = message.preview_text || message.preview || message.snippet || message.text || message.text_body || message.body_text || message.body || message.body_html || "";
+
+    return {
+        id,
+        provider,
+        accountId: options.accountId || "",
+        from,
+        subject: message.subject || "(no subject)",
+        preview: stripText(String(preview)).slice(0, 260),
+        created_at: createdAt,
+        is_read: Boolean(message.is_read || message.read),
+        size: message.size || null,
+        raw: message
+    };
+}
+
+function stableMessageId(message) {
+    const source = [
+        message.subject || "",
+        message.from || message.sender || "",
+        message.created_at || message.createdAt || message.date || "",
+        message.preview_text || message.preview || message.text_body || message.body || ""
+    ].join("|");
+
+    return crypto.createHash("sha1").update(source || JSON.stringify(message)).digest("hex").slice(0, 16);
+}
+
+function normalizeMessageDetail(provider, message) {
+    message = unwrapMessagePayload(message);
+
+    const summary = normalizeMessageSummary(provider, message);
+    const text = message.text_body || message.textBody || message.body_text || message.text || message.body || message.content || "";
+    const html = message.html_body || message.htmlBody || message.body_html || message.html || "";
+    const attachments = Array.isArray(message.attachments) ? message.attachments : [];
+
+    return {
+        ...summary,
+        address: message.address || message.to || "",
+        text_body: text || stripText(html),
+        html_body: html,
+        attachments,
+        headers: message.headers || null,
+        raw: message
+    };
+}
+
+function unwrapApiPayload(data) {
+    if (data && typeof data === "object" && data.success === true && data.data && typeof data.data === "object") {
+        return data.data;
+    }
+
+    return data;
+}
+
+function unwrapMessagePayload(message) {
+    let data = unwrapApiPayload(message);
+
+    if (data && typeof data === "object" && data.raw && typeof data.raw === "object") {
+        const raw = unwrapApiPayload(data.raw);
+        if (raw && typeof raw === "object" && (
+            raw.subject ||
+            raw.from ||
+            raw.body_html ||
+            raw.body_text ||
+            raw.html_body ||
+            raw.text_body ||
+            raw.messages
+        )) {
+            data = raw;
+        }
+    }
+
+    return data || {};
+}
+
+function stripText(value) {
+    return String(value || "")
+        .replace(/<style[\s\S]*?<\/style>/gi, " ")
+        .replace(/<script[\s\S]*?<\/script>/gi, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
 function buildLocalPart(options) {
     if (options.count === 1 && options.prefix) {
         options.usedLocalParts.add(options.prefix);
@@ -438,6 +805,69 @@ function jsonResponse(statusCode, body) {
     };
 }
 
+function resolveLocalStaticPath(requestUrl) {
+    const pathname = new URL(requestUrl, "http://127.0.0.1").pathname;
+    const routeMap = {
+        "/": "socks5QR.html",
+        "/mailapi": "mailApi.html",
+        "/mailApi": "mailApi.html",
+        "/mailcreate": "mailCreate.html",
+        "/mailCreate": "mailCreate.html",
+        "/mailmanager": "mailManager.html",
+        "/mailManager": "mailManager.html",
+        "/mailview": "mailView.html",
+        "/mailView": "mailView.html",
+        "/boobar": "mailView.html",
+        "/m": "mailView.html"
+    };
+    const mappedPath = routeMap[pathname] || pathname.replace(/^\/functions\//, "/").replace(/^\//, "");
+
+    if (!mappedPath || mappedPath.includes("\0")) {
+        return "";
+    }
+
+    const filePath = path.resolve(LOCAL_STATIC_ROOT, mappedPath);
+    if (!filePath.startsWith(`${LOCAL_STATIC_ROOT}${path.sep}`) && filePath !== LOCAL_STATIC_ROOT) {
+        return "";
+    }
+
+    return filePath;
+}
+
+function getContentType(filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    const types = {
+        ".html": "text/html; charset=utf-8",
+        ".css": "text/css; charset=utf-8",
+        ".js": "application/javascript; charset=utf-8",
+        ".json": "application/json; charset=utf-8",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".svg": "image/svg+xml; charset=utf-8"
+    };
+
+    return types[ext] || "application/octet-stream";
+}
+
+function serveLocalStatic(req, res) {
+    const filePath = resolveLocalStaticPath(req.url);
+    if (!filePath) {
+        return false;
+    }
+
+    if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+        return false;
+    }
+
+    res.writeHead(200, {
+        "Content-Type": getContentType(filePath),
+        "Cache-Control": "no-store"
+    });
+    fs.createReadStream(filePath).pipe(res);
+    return true;
+}
+
 if (require.main === module) {
     const server = http.createServer((req, res) => {
         Object.entries(corsHeaders).forEach(([key, value]) => res.setHeader(key, value));
@@ -445,6 +875,10 @@ if (require.main === module) {
         if (req.method === "OPTIONS") {
             res.writeHead(204);
             res.end();
+            return;
+        }
+
+        if (req.method === "GET" && serveLocalStatic(req, res)) {
             return;
         }
 

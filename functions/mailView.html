@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>邮箱API查看</title>
+    <link rel="stylesheet" type="text/css" href="./assets/socksQr.css">
+</head>
+<body class="mail-manager-body">
+    <main class="mail-view-shell">
+        <section class="tool-panel mail-view-panel">
+            <header class="page-header">
+                <div>
+                    <p class="eyebrow">Mail API Viewer</p>
+                    <h1>邮箱API查看</h1>
+                </div>
+                <nav class="page-nav single-nav" aria-label="Mail pages">
+                    <a class="page-nav-link" href="./mailApi.html">MailApi</a>
+                </nav>
+            </header>
+
+            <div class="mail-view-toolbar">
+                <div class="form-group">
+                    <label for="viewEmail">邮箱账号</label>
+                    <input id="viewEmail" type="text" placeholder="email@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="viewPassword">邮箱密码</label>
+                    <input id="viewPassword" type="text" placeholder="可选，部分邮箱必须填写">
+                </div>
+                <button id="refreshMailbox" class="primary-action" type="button">刷新邮件</button>
+            </div>
+
+            <div id="viewStatus" class="error" aria-live="polite"></div>
+
+            <section class="mail-view-layout" aria-label="邮箱API查看">
+                <section class="manager-column">
+                    <div class="manager-column-title">邮件列表</div>
+                    <div id="singleMessageList" class="manager-list"></div>
+                </section>
+
+                <section class="manager-column">
+                    <div class="manager-column-title">邮件内容</div>
+                    <article id="singleMessageDetail" class="manager-detail empty-state">正在等待加载邮件</article>
+                </section>
+            </section>
+        </section>
+    </main>
+
+    <script src="./assets/mailView.js"></script>
+</body>
+</html>
