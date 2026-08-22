@@ -549,6 +549,42 @@ button,
     min-height: 560px;
 }
 
+.manager-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.mail-view-code-button {
+    flex: 0 0 auto;
+    width: 104px;
+    margin-right: 9px;
+    min-height: 30px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.2;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: #111827;
+}
+
+.mail-view-code-button:disabled {
+    cursor: default;
+    opacity: 0.58;
+    background: #94a3b8;
+}
+
+.mail-view-code-button.copied {
+    background: var(--success);
+}
+
 .mail-manager-layout {
     display: grid;
     grid-template-columns: 280px minmax(320px, 0.9fr) minmax(420px, 1.3fr);

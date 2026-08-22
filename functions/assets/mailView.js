@@ -16,7 +16,8 @@ const els = {
     refresh: document.getElementById("refreshMailbox"),
     status: document.getElementById("viewStatus"),
     messageList: document.getElementById("singleMessageList"),
-    messageDetail: document.getElementById("singleMessageDetail")
+    messageDetail: document.getElementById("singleMessageDetail"),
+    codeButton: document.getElementById("singleMailCode")
 };
 
 init();
@@ -28,6 +29,7 @@ function init() {
     els.password.value = shortAccount.password || params.get("p") || params.get("password") || params.get("pass") || params.get("pwd") || "";
 
     els.refresh.addEventListener("click", () => loadMailbox(true));
+    els.codeButton.addEventListener("click", () => copyText(els.codeButton.textContent, els.codeButton));
     els.email.addEventListener("change", restartAutoRefresh);
     els.password.addEventListener("change", restartAutoRefresh);
 
@@ -213,6 +215,7 @@ function renderDetail(message) {
 
     const htmlBody = getMessageHtml(message);
     const textBody = getMessageText(message);
+    renderVerificationCode(message);
 
     if (htmlBody) {
         const frame = document.createElement("iframe");
@@ -231,6 +234,32 @@ function renderDetail(message) {
 function renderEmptyDetail(text) {
     els.messageDetail.className = "manager-detail empty-state";
     els.messageDetail.textContent = text;
+    renderVerificationCode(null);
+}
+
+function renderVerificationCode(message) {
+    const code = extractVerificationCode(message);
+    els.codeButton.hidden = !code;
+    els.codeButton.disabled = !code;
+    els.codeButton.textContent = code || "";
+    els.codeButton.classList.remove("copied");
+}
+
+function extractVerificationCode(message) {
+    if (!message) return "";
+
+    const content = [
+        getMessageSubject(message),
+        getMessagePreview(message),
+        getMessageText(message),
+        stripHtml(getMessageHtml(message))
+    ].join("\n");
+
+    const preferred = String(content).match(/(^|\D)(\d{6,8})(?!\d)/);
+    if (preferred) return preferred[2];
+
+    const fallback = String(content).match(/(^|\D)(\d{4,5})(?!\d)/);
+    return fallback ? fallback[2] : "";
 }
 
 function startAutoRefresh() {
@@ -383,4 +412,28 @@ function setBusy(busy) {
 function setStatus(text, type = "error") {
     els.status.textContent = text;
     els.status.classList.toggle("success", type === "success");
+}
+
+async function copyText(text, button) {
+    if (!text || button.disabled) return;
+
+    try {
+        await navigator.clipboard.writeText(text);
+    } catch (error) {
+        const input = document.createElement("textarea");
+        input.value = text;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        document.body.removeChild(input);
+    }
+
+    const oldText = button.textContent;
+    button.textContent = "已复制";
+    button.classList.add("copied");
+
+    setTimeout(() => {
+        button.textContent = oldText;
+        button.classList.remove("copied");
+    }, 1200);
 }

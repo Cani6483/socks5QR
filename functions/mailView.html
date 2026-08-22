@@ -15,7 +15,7 @@
                     <h1>邮箱API查看</h1>
                 </div>
                 <nav class="page-nav single-nav" aria-label="Mail pages">
-                    <a class="page-nav-link" href="./mailApi.html">MailApi</a>
+                    <a class="page-nav-link" href="./mailApi.html">API批量取码</a>
                 </nav>
             </header>
 
@@ -40,7 +40,10 @@
                 </section>
 
                 <section class="manager-column">
-                    <div class="manager-column-title">邮件内容</div>
+                    <div class="manager-column-title manager-title-row">
+                        <span>邮件内容</span>
+                        <button id="singleMailCode" class="mail-view-code-button" type="button" hidden></button>
+                    </div>
                     <article id="singleMessageDetail" class="manager-detail empty-state">正在等待加载邮件</article>
                 </section>
             </section>
