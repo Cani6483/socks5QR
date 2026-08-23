@@ -7,11 +7,13 @@ const els = {
     codeStatus: document.getElementById("codeStatus"),
     fetchCodes: document.getElementById("fetchCodes"),
     copyApiLinks: document.getElementById("copyApiLinks"),
+    copyCodes: document.getElementById("copyCodes"),
     codeResults: document.getElementById("codeResults")
 };
 
 els.fetchCodes.addEventListener("click", fetchCodes);
 els.copyApiLinks.addEventListener("click", copyApiLinks);
+els.copyCodes.addEventListener("click", copyCodes);
 loadMailtdDomains();
 
 async function fetchCodes() {
@@ -59,6 +61,24 @@ async function copyApiLinks() {
     const links = accounts.map(account => buildMailViewUrl(account.email, account.password));
     await copyText(links.join("\n"), els.copyApiLinks);
     setStatus(els.codeStatus, `已复制 ${links.length} 个API链接。`, "success");
+}
+
+async function copyCodes() {
+    const codes = Array.from(els.codeResults.querySelectorAll(".mail-code"))
+        .map(button => ({
+            index: button.dataset.index || "",
+            code: button.textContent.trim()
+        }))
+        .filter(item => item.index && /^\d+$/.test(item.code));
+
+    if (!codes.length) {
+        setStatus(els.codeStatus, "暂无可复制的验证码。");
+        return;
+    }
+
+    const text = codes.map(item => `${item.index}. ${item.code}`).join("\n");
+    await copyText(text, els.copyCodes);
+    setStatus(els.codeStatus, `已复制 ${codes.length} 个验证码。`, "success");
 }
 
 async function loadMailtdDomains() {
@@ -350,6 +370,7 @@ function appendCodeResult(container, index, account, password, provider, code, t
     const codeBtn = document.createElement("button");
     codeBtn.type = "button";
     codeBtn.className = "mail-code";
+    codeBtn.dataset.index = String(index);
     codeBtn.textContent = code;
     codeBtn.addEventListener("click", () => copyText(codeBtn.textContent, codeBtn));
 
