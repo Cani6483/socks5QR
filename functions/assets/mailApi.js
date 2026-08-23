@@ -92,10 +92,15 @@ async function postMailProxy(payload) {
     }
 
     if (!response.ok || data.error) {
-        throw new Error(data.message || data.error || `HTTP ${response.status}`);
+        throw new Error(getMailErrorMessage(response.status, data));
     }
 
     return data;
+}
+
+function getMailErrorMessage(status, data) {
+    const message = data.message || data.error || `HTTP ${status}`;
+    return status === 401 || String(message).includes("HTTP 401") ? "账号密码错误" : message;
 }
 
 function getMailProxyUrl() {
@@ -130,18 +135,54 @@ function encodeShortParam(value) {
 }
 
 function parseMailboxLines(text) {
-    return text
+    const lines = text
         .split(/\r?\n/)
         .map(line => line.trim())
-        .filter(Boolean)
-        .map(line => {
-            const parts = line.split(/\s*(?:----|\||,|\t|\s)\s*/).filter(Boolean);
-            return {
-                email: parts[0] || "",
-                password: parts.slice(1).join(" ") || ""
-            };
-        })
-        .filter(item => item.email.includes("@"));
+        .filter(Boolean);
+    const accounts = [];
+
+    for (let index = 0; index < lines.length; index += 1) {
+        const parts = splitMailboxLine(lines[index]);
+        const email = normalizeEmailAddress(parts[0]);
+        let password = parts.slice(1).join(" ") || "";
+
+        if (!email.includes("@")) {
+            continue;
+        }
+
+        if (!password && index + 1 < lines.length) {
+            const nextParts = splitMailboxLine(lines[index + 1]);
+            const nextEmail = normalizeEmailAddress(nextParts[0]);
+
+            if (!nextEmail.includes("@")) {
+                password = lines[index + 1].trim();
+                index += 1;
+            }
+        }
+
+        if (shouldSkipMailboxEmail(email)) {
+            continue;
+        }
+
+        accounts.push({ email, password });
+    }
+
+    return accounts;
+}
+
+function splitMailboxLine(line) {
+    return String(line || "")
+        .replace(/\\@/g, "@")
+        .split(/\s*(?:----|\||,|\t|\s)\s*/)
+        .filter(Boolean);
+}
+
+function normalizeEmailAddress(value) {
+    return String(value || "").trim().replace(/\\@/g, "@");
+}
+
+function shouldSkipMailboxEmail(email) {
+    return getEmailDomain(email) === "kakao.com";
 }
 
 function resolveProvider(email) {

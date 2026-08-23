@@ -316,10 +316,15 @@ async function postMailProxy(payload) {
     }
 
     if (!response.ok || data.error) {
-        throw new Error(data.message || data.error || `HTTP ${response.status}`);
+        throw new Error(getMailErrorMessage(response.status, data));
     }
 
     return data;
+}
+
+function getMailErrorMessage(status, data) {
+    const message = data.message || data.error || `HTTP ${status}`;
+    return status === 401 || String(message).includes("HTTP 401") ? "账号密码错误" : message;
 }
 
 function getMailProxyUrl() {

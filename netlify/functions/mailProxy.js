@@ -1,4 +1,4 @@
-const http = require("http");
+﻿const http = require("http");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
@@ -88,7 +88,7 @@ async function fetchFirstmailLatest(payload) {
     }
 
     if (!response.ok) {
-        throw httpError(response.status, data.error || "firstmail_error", data.message || `firstmail HTTP ${response.status}`);
+        throwMailProviderError(response.status, data, "firstmail_error", `firstmail HTTP ${response.status}`);
     }
 
     return data;
@@ -458,7 +458,7 @@ async function firstmailRequest(path, body) {
     }
 
     if (!response.ok) {
-        throw httpError(response.status, data.error || "firstmail_error", data.message || `firstmail HTTP ${response.status}`);
+        throwMailProviderError(response.status, data, "firstmail_error", `firstmail HTTP ${response.status}`);
     }
 
     return data;
@@ -548,7 +548,7 @@ async function mailtdRequest(path, options = {}) {
     const data = await readJsonResponse(response);
 
     if (!response.ok) {
-        throw httpError(response.status, data.error || "mailtd_error", data.message || `Mail.td HTTP ${response.status}`);
+        throwMailProviderError(response.status, data, "mailtd_error", `Mail.td HTTP ${response.status}`);
     }
 
     return data;
@@ -805,6 +805,14 @@ function jsonResponse(statusCode, body) {
     };
 }
 
+function throwMailProviderError(statusCode, data, fallbackCode, fallbackMessage) {
+    if (statusCode === 401) {
+        throw httpError(401, "invalid_mailbox_login", "账号密码错误");
+    }
+
+    throw httpError(statusCode, data.error || fallbackCode, data.message || fallbackMessage);
+}
+
 function resolveLocalStaticPath(requestUrl) {
     const pathname = new URL(requestUrl, "http://127.0.0.1").pathname;
     const routeMap = {
@@ -922,3 +930,4 @@ if (require.main === module) {
         console.log("Mail proxy running: http://127.0.0.1:3000/mail");
     });
 }
+
