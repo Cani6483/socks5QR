@@ -163,24 +163,44 @@ function parseMailboxLines(text) {
 
     for (let index = 0; index < lines.length; index += 1) {
         const parts = splitMailboxLine(lines[index]);
+        const lineAccounts = parseMailboxParts(parts);
+
+        if (lineAccounts.length) {
+            accounts.push(...lineAccounts);
+            continue;
+        }
+
         const email = normalizeEmailAddress(parts[0]);
-        let password = parts.slice(1).join(" ") || "";
+
+        if (!email.includes("@") || shouldSkipMailboxEmail(email) || index + 1 >= lines.length) {
+            continue;
+        }
+
+        const nextParts = splitMailboxLine(lines[index + 1]);
+        const nextEmail = normalizeEmailAddress(nextParts[0]);
+
+        if (!nextEmail.includes("@")) {
+            accounts.push({ email, password: lines[index + 1].trim() });
+            index += 1;
+        }
+    }
+
+    return accounts;
+}
+
+function parseMailboxParts(parts) {
+    const accounts = [];
+
+    for (let index = 0; index < parts.length; index += 1) {
+        const email = normalizeEmailAddress(parts[index]);
 
         if (!email.includes("@")) {
             continue;
         }
 
-        if (!password && index + 1 < lines.length) {
-            const nextParts = splitMailboxLine(lines[index + 1]);
-            const nextEmail = normalizeEmailAddress(nextParts[0]);
+        const password = findInlinePassword(parts, index + 1);
 
-            if (!nextEmail.includes("@")) {
-                password = lines[index + 1].trim();
-                index += 1;
-            }
-        }
-
-        if (shouldSkipMailboxEmail(email)) {
+        if (!password || shouldSkipMailboxEmail(email)) {
             continue;
         }
 
@@ -188,6 +208,24 @@ function parseMailboxLines(text) {
     }
 
     return accounts;
+}
+
+function findInlinePassword(parts, startIndex) {
+    for (let index = startIndex; index < parts.length; index += 1) {
+        const value = String(parts[index] || "").trim();
+
+        if (!value) {
+            continue;
+        }
+
+        if (normalizeEmailAddress(value).includes("@")) {
+            return "";
+        }
+
+        return value;
+    }
+
+    return "";
 }
 
 function splitMailboxLine(line) {
