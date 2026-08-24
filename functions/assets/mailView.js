@@ -96,7 +96,7 @@ async function loadMailbox(manual = false) {
             password
         });
 
-        const nextMessages = Array.isArray(data.messages) ? data.messages : [];
+        const nextMessages = sortMessagesNewestFirst(Array.isArray(data.messages) ? data.messages : []);
         const hasChanged = getMessagesSignature(nextMessages) !== getMessagesSignature(state.messages);
 
         if (!manual && !hasChanged) {
@@ -295,6 +295,16 @@ function getMessagesSignature(messages) {
             getMessageDate(message)
         ].map(value => String(value || "")).join("|"))
         .join("\n");
+}
+
+function sortMessagesNewestFirst(messages) {
+    return [...messages].sort((left, right) => getMessageTimeValue(right) - getMessageTimeValue(left));
+}
+
+function getMessageTimeValue(message) {
+    const value = getMessageDate(message);
+    const time = value ? new Date(value).getTime() : 0;
+    return Number.isNaN(time) ? 0 : time;
 }
 
 async function postMailProxy(payload) {
