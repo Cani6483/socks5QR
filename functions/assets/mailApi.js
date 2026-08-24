@@ -1,5 +1,14 @@
 const MAIL_CODE_VALID_MS = 30 * 60 * 1000;
+const AUTO_REFRESH_SECONDS = 15;
 const mailtdDomains = new Set(["nqmo.com"]);
+
+const state = {
+    rows: [],
+    fetchInProgress: false,
+    autoRefreshTimer: null,
+    countdownTimer: null,
+    nextRefreshAt: 0
+};
 
 const els = {
     mailInput: document.getElementById("mailInput"),
@@ -14,9 +23,13 @@ const els = {
 els.fetchCodes.addEventListener("click", fetchCodes);
 els.copyApiLinks.addEventListener("click", copyApiLinks);
 els.copyCodes.addEventListener("click", copyCodes);
+els.mailInput.addEventListener("input", stopAutoRefresh);
 loadMailtdDomains();
 
 async function fetchCodes() {
+    if (state.fetchInProgress) return;
+
+    stopAutoRefresh();
     setStatus(els.codeStatus, "");
     els.codeResults.innerHTML = "";
 
@@ -27,6 +40,7 @@ async function fetchCodes() {
     }
 
     setBusy(els.fetchCodes, true, "加载中...");
+    state.fetchInProgress = true;
 
     try {
         const rows = accounts.map((account, index) => {
@@ -37,6 +51,7 @@ async function fetchCodes() {
                 row: appendCodeResult(els.codeResults, index + 1, account.email, account.password, provider, "加载中...", "-")
             };
         });
+        state.rows = rows;
 
         await Promise.all(rows.map(item => refreshCodeRow(item.row, item.account.email, item.account.password, item.provider)
             .catch(error => {
@@ -45,9 +60,65 @@ async function fetchCodes() {
                 item.row.refreshBtn.disabled = false;
                 item.row.refreshBtn.textContent = "刷新";
             })));
+        startAutoRefresh();
     } finally {
+        state.fetchInProgress = false;
         setBusy(els.fetchCodes, false, "获取邮件验证码");
     }
+}
+
+async function refreshAllCodeRows() {
+    if (state.fetchInProgress || !state.rows.length) {
+        scheduleNextAutoRefresh();
+        return;
+    }
+
+    state.fetchInProgress = true;
+
+    try {
+        await Promise.all(state.rows.map(item => refreshCodeRow(item.row, item.account.email, item.account.password, item.provider, { silent: true })
+            .catch(() => {})));
+    } finally {
+        state.fetchInProgress = false;
+        scheduleNextAutoRefresh();
+    }
+}
+
+function startAutoRefresh() {
+    if (!state.rows.length) return;
+    scheduleNextAutoRefresh();
+
+    clearInterval(state.countdownTimer);
+    state.countdownTimer = setInterval(updateAutoRefreshStatus, 1000);
+    updateAutoRefreshStatus();
+}
+
+function scheduleNextAutoRefresh() {
+    clearTimeout(state.autoRefreshTimer);
+
+    if (!state.rows.length) {
+        state.nextRefreshAt = 0;
+        return;
+    }
+
+    state.nextRefreshAt = Date.now() + AUTO_REFRESH_SECONDS * 1000;
+    state.autoRefreshTimer = setTimeout(refreshAllCodeRows, AUTO_REFRESH_SECONDS * 1000);
+    updateAutoRefreshStatus();
+}
+
+function stopAutoRefresh() {
+    clearTimeout(state.autoRefreshTimer);
+    clearInterval(state.countdownTimer);
+    state.autoRefreshTimer = null;
+    state.countdownTimer = null;
+    state.nextRefreshAt = 0;
+    state.rows = [];
+}
+
+function updateAutoRefreshStatus() {
+    if (!state.nextRefreshAt || !state.rows.length) return;
+    const seconds = Math.max(0, Math.ceil((state.nextRefreshAt - Date.now()) / 1000));
+    setStatus(els.codeStatus, `已加载 ${state.rows.length} 个邮箱，${seconds}s 后自动刷新。`, "success");
 }
 
 async function copyApiLinks() {
@@ -367,11 +438,15 @@ function isMailCodeValid(receivedAt) {
     return age >= 0 && age <= MAIL_CODE_VALID_MS;
 }
 
-async function refreshCodeRow(row, email, password, provider) {
-    row.refreshBtn.disabled = true;
-    row.refreshBtn.textContent = "加载";
-    row.codeBtn.textContent = "加载中...";
-    row.codeBtn.classList.add("loading");
+async function refreshCodeRow(row, email, password, provider, options = {}) {
+    const silent = options.silent === true;
+
+    if (!silent) {
+        row.refreshBtn.disabled = true;
+        row.refreshBtn.textContent = "加载";
+        row.codeBtn.textContent = "加载中...";
+        row.codeBtn.classList.add("loading");
+    }
 
     try {
         const selectedProvider = provider || resolveProvider(email);
@@ -381,12 +456,22 @@ async function refreshCodeRow(row, email, password, provider) {
             password
         });
         const message = extractMailMessage(JSON.stringify(data));
-        setMailCode(row.timeEl, row.codeBtn, message);
+        if (!silent || shouldApplySilentMailCode(row.codeBtn, message)) {
+            setMailCode(row.timeEl, row.codeBtn, message);
+        }
     } finally {
-        row.codeBtn.classList.remove("loading");
-        row.refreshBtn.disabled = false;
-        row.refreshBtn.textContent = "刷新";
+        if (!silent) {
+            row.codeBtn.classList.remove("loading");
+            row.refreshBtn.disabled = false;
+            row.refreshBtn.textContent = "刷新";
+        }
     }
+}
+
+function shouldApplySilentMailCode(button, message) {
+    const nextCode = String(message && message.code || "").trim();
+    const currentCode = String(button.textContent || "").trim();
+    return /^\d+$/.test(nextCode) && nextCode !== currentCode;
 }
 
 function appendCodeResult(container, index, account, password, provider, code, time) {
