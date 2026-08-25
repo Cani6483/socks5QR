@@ -57,8 +57,8 @@ async function handleAction(payload) {
 }
 
 async function fetchFirstmailLatest(payload) {
-    const email = String(payload.email || "").trim();
-    const password = String(payload.password || "").trim();
+    const email = normalizeMailboxEmail(payload.email);
+    const password = normalizeMailboxPassword(payload.password);
 
     if (!email || !password) {
         throw httpError(400, "missing_mailbox", "Email and password are required.");
@@ -95,8 +95,8 @@ async function fetchFirstmailLatest(payload) {
 }
 
 async function fetchMailtdLatest(payload) {
-    const email = String(payload.email || "").trim().toLowerCase();
-    const password = String(payload.password || "").trim();
+    const email = normalizeMailboxEmail(payload.email);
+    const password = normalizeMailboxPassword(payload.password);
 
     if (!email || !email.includes("@")) {
         throw httpError(400, "invalid_email", "Invalid email address.");
@@ -229,8 +229,8 @@ async function createAccounts(payload) {
 }
 
 async function fetchManagerMessages(payload) {
-    const email = String(payload.email || "").trim().toLowerCase();
-    const password = String(payload.password || "").trim();
+    const email = normalizeMailboxEmail(payload.email);
+    const password = normalizeMailboxPassword(payload.password);
     const provider = String(payload.provider || "").trim() || resolveProviderFromEmail(email);
 
     if (!email || !email.includes("@")) {
@@ -245,8 +245,8 @@ async function fetchManagerMessages(payload) {
 }
 
 async function fetchManagerMessageDetail(payload) {
-    const email = String(payload.email || "").trim().toLowerCase();
-    const password = String(payload.password || "").trim();
+    const email = normalizeMailboxEmail(payload.email);
+    const password = normalizeMailboxPassword(payload.password);
     const messageId = String(payload.messageId || "").trim();
     const provider = String(payload.provider || "").trim() || resolveProviderFromEmail(email);
     const fallbackMessage = payload.message && typeof payload.message === "object" ? payload.message : null;
@@ -600,6 +600,14 @@ function isConflictError(error) {
 function resolveProviderFromEmail(email) {
     const domain = String(email || "").split("@").pop().toLowerCase();
     return isMailtdDomain(domain) ? "mailtd" : "firstmail";
+}
+
+function normalizeMailboxEmail(value) {
+    return String(value || "").trim().replace(/\\@/g, "@").toLowerCase();
+}
+
+function normalizeMailboxPassword(value) {
+    return String(value || "").trim().replace(/\\@/g, "@");
 }
 
 function isMailtdDomain(domain) {

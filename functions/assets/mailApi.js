@@ -251,7 +251,7 @@ function parseMailboxLines(text) {
         const nextEmail = normalizeEmailAddress(nextParts[0]);
 
         if (!nextEmail.includes("@")) {
-            accounts.push({ email, password: lines[index + 1].trim() });
+            accounts.push({ email, password: normalizeMailboxToken(lines[index + 1]) });
             index += 1;
         }
     }
@@ -265,7 +265,7 @@ function parseMailboxParts(parts) {
     for (let index = 0; index < parts.length; index += 1) {
         const email = normalizeEmailAddress(parts[index]);
 
-        if (!email.includes("@")) {
+        if (!isMailboxEmailAddress(email)) {
             continue;
         }
 
@@ -283,13 +283,13 @@ function parseMailboxParts(parts) {
 
 function findInlinePassword(parts, startIndex) {
     for (let index = startIndex; index < parts.length; index += 1) {
-        const value = String(parts[index] || "").trim();
+        const value = normalizeMailboxToken(parts[index]);
 
-        if (!value) {
+        if (!value || value === "\\") {
             continue;
         }
 
-        if (normalizeEmailAddress(value).includes("@")) {
+        if (isMailboxEmailAddress(value)) {
             return "";
         }
 
@@ -302,12 +302,21 @@ function findInlinePassword(parts, startIndex) {
 function splitMailboxLine(line) {
     return String(line || "")
         .replace(/\\@/g, "@")
+        .replace(/[ \t]+\\/g, " ")
         .split(/\s*(?:----|\||,|\t|\s)\s*/)
         .filter(Boolean);
 }
 
 function normalizeEmailAddress(value) {
+    return normalizeMailboxToken(value).toLowerCase();
+}
+
+function normalizeMailboxToken(value) {
     return String(value || "").trim().replace(/\\@/g, "@");
+}
+
+function isMailboxEmailAddress(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmailAddress(value));
 }
 
 function shouldSkipMailboxEmail(email) {
