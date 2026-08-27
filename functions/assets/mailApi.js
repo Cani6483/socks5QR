@@ -1,5 +1,6 @@
 const MAIL_CODE_VALID_MS = 30 * 60 * 1000;
 const AUTO_REFRESH_SECONDS = 15;
+const AUTO_REFRESH_MAX_MS = 30 * 60 * 1000;
 const mailtdDomains = new Set(["nqmo.com"]);
 
 const state = {
@@ -7,7 +8,8 @@ const state = {
     fetchInProgress: false,
     autoRefreshTimer: null,
     countdownTimer: null,
-    nextRefreshAt: 0
+    nextRefreshAt: 0,
+    autoRefreshStopAt: 0
 };
 
 const els = {
@@ -86,6 +88,7 @@ async function refreshAllCodeRows() {
 
 function startAutoRefresh() {
     if (!state.rows.length) return;
+    markAutoRefreshActivity();
     scheduleNextAutoRefresh();
 
     clearInterval(state.countdownTimer);
@@ -101,27 +104,67 @@ function scheduleNextAutoRefresh() {
         return;
     }
 
-    state.nextRefreshAt = Date.now() + AUTO_REFRESH_SECONDS * 1000;
-    state.autoRefreshTimer = setTimeout(refreshAllCodeRows, AUTO_REFRESH_SECONDS * 1000);
+    const remainingMs = state.autoRefreshStopAt - Date.now();
+    if (remainingMs <= 0) {
+        stopAutoRefresh({
+            keepRows: true,
+            message: "自动刷新已停止，超过 30 分钟未操作。"
+        });
+        return;
+    }
+
+    const nextDelayMs = Math.min(AUTO_REFRESH_SECONDS * 1000, remainingMs);
+    state.nextRefreshAt = Date.now() + nextDelayMs;
+    state.autoRefreshTimer = setTimeout(
+        nextDelayMs < AUTO_REFRESH_SECONDS * 1000 ? stopExpiredAutoRefresh : refreshAllCodeRows,
+        nextDelayMs
+    );
     updateAutoRefreshStatus();
 }
 
-function stopAutoRefresh() {
+function stopExpiredAutoRefresh() {
+    if (state.rows.length && state.autoRefreshStopAt > Date.now()) {
+        scheduleNextAutoRefresh();
+        return;
+    }
+
+    stopAutoRefresh({
+        keepRows: true,
+        message: "自动刷新已停止，超过 30 分钟未操作。"
+    });
+}
+
+function stopAutoRefresh(options = {}) {
     clearTimeout(state.autoRefreshTimer);
     clearInterval(state.countdownTimer);
     state.autoRefreshTimer = null;
     state.countdownTimer = null;
     state.nextRefreshAt = 0;
-    state.rows = [];
+    state.autoRefreshStopAt = 0;
+
+    if (!options.keepRows) {
+        state.rows = [];
+    }
+
+    if (options.message) {
+        setStatus(els.codeStatus, options.message, "success");
+    }
+}
+
+function markAutoRefreshActivity() {
+    if (!state.rows.length) return;
+    state.autoRefreshStopAt = Date.now() + AUTO_REFRESH_MAX_MS;
 }
 
 function updateAutoRefreshStatus() {
     if (!state.nextRefreshAt || !state.rows.length) return;
     const seconds = Math.max(0, Math.ceil((state.nextRefreshAt - Date.now()) / 1000));
-    setStatus(els.codeStatus, `已加载 ${state.rows.length} 个邮箱，${seconds}s 后自动刷新。`, "success");
+    const activeMinutes = Math.max(0, Math.ceil((state.autoRefreshStopAt - Date.now()) / 60000));
+    setStatus(els.codeStatus, `已加载 ${state.rows.length} 个邮箱，${seconds}s 后自动刷新，${activeMinutes} 分钟未操作后停止。`, "success");
 }
 
 async function copyApiLinks() {
+    markAutoRefreshActivity();
     const accounts = parseMailboxLines(els.mailInput.value);
 
     if (!accounts.length) {
@@ -135,6 +178,7 @@ async function copyApiLinks() {
 }
 
 async function copyCodes() {
+    markAutoRefreshActivity();
     const codes = Array.from(els.codeResults.querySelectorAll(".mail-code"))
         .map(button => ({
             index: button.dataset.index || "",
@@ -493,7 +537,10 @@ function appendCodeResult(container, index, account, password, provider, code, t
     accountEl.className = "mail-account";
     accountEl.title = apiLink;
     accountEl.textContent = `${index}. ${account} (${provider === "mailtd" ? "Mail.td" : "firstmail"})`;
-    accountEl.addEventListener("click", () => copyText(apiLink, accountEl));
+    accountEl.addEventListener("click", () => {
+        markAutoRefreshActivity();
+        copyText(apiLink, accountEl);
+    });
 
     const timeEl = document.createElement("div");
     timeEl.className = "mail-time";
@@ -504,7 +551,10 @@ function appendCodeResult(container, index, account, password, provider, code, t
     codeBtn.className = "mail-code";
     codeBtn.dataset.index = String(index);
     codeBtn.textContent = code;
-    codeBtn.addEventListener("click", () => copyText(codeBtn.textContent, codeBtn));
+    codeBtn.addEventListener("click", () => {
+        markAutoRefreshActivity();
+        copyText(codeBtn.textContent, codeBtn);
+    });
 
     const refreshBtn = document.createElement("button");
     refreshBtn.type = "button";
@@ -512,6 +562,7 @@ function appendCodeResult(container, index, account, password, provider, code, t
     refreshBtn.textContent = "刷新";
     refreshBtn.title = "Refresh this mailbox only";
     refreshBtn.addEventListener("click", async () => {
+        markAutoRefreshActivity();
         try {
             await refreshCodeRow({ timeEl, codeBtn, refreshBtn }, account, password, resolveProvider(account));
         } catch (error) {
