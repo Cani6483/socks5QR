@@ -1,5 +1,6 @@
 const mailtdDomains = new Set(["nqmo.com", "end.tw", "uuf.me", "6n9.net", "sugtbt.com", "qabq.com"]);
 const REFRESH_SECONDS = 15;
+const AUTO_REFRESH_MAX_MS = 30 * 60 * 1000;
 
 const state = {
     messages: [],
@@ -7,7 +8,8 @@ const state = {
     loading: false,
     refreshTimer: null,
     countdownTimer: null,
-    nextRefreshAt: 0
+    nextRefreshAt: 0,
+    autoRefreshStopAt: 0
 };
 
 const els = {
@@ -28,8 +30,15 @@ function init() {
     els.email.value = shortAccount.email || params.get("e") || params.get("email") || "";
     els.password.value = shortAccount.password || params.get("p") || params.get("password") || params.get("pass") || params.get("pwd") || "";
 
-    els.refresh.addEventListener("click", () => loadMailbox(true));
-    els.codeButton.addEventListener("click", () => copyText(els.codeButton.textContent, els.codeButton));
+    els.refresh.addEventListener("click", async () => {
+        markAutoRefreshActivity();
+        await loadMailbox(true);
+        startAutoRefresh();
+    });
+    els.codeButton.addEventListener("click", () => {
+        markAutoRefreshActivity();
+        copyText(els.codeButton.textContent, els.codeButton);
+    });
     els.email.addEventListener("change", restartAutoRefresh);
     els.password.addEventListener("change", restartAutoRefresh);
 
@@ -177,7 +186,10 @@ function renderMessages(messages) {
         const button = document.createElement("button");
         button.type = "button";
         button.className = `manager-list-item ${String(message.id) === state.selectedMessageId ? "active" : ""}`;
-        button.addEventListener("click", () => selectMessage(message.id));
+        button.addEventListener("click", () => {
+            markAutoRefreshActivity();
+            selectMessage(message.id);
+        });
 
         const title = document.createElement("strong");
         title.textContent = getMessageSubject(message);
@@ -263,14 +275,11 @@ function extractVerificationCode(message) {
 }
 
 function startAutoRefresh() {
-    clearInterval(state.refreshTimer);
+    clearTimeout(state.refreshTimer);
     clearInterval(state.countdownTimer);
 
-    state.nextRefreshAt = Date.now() + REFRESH_SECONDS * 1000;
-    state.refreshTimer = setInterval(() => {
-        state.nextRefreshAt = Date.now() + REFRESH_SECONDS * 1000;
-        loadMailbox(false);
-    }, REFRESH_SECONDS * 1000);
+    markAutoRefreshActivity();
+    scheduleNextAutoRefresh();
     state.countdownTimer = setInterval(scheduleNextRefreshText, 1000);
 }
 
@@ -280,11 +289,67 @@ function restartAutoRefresh() {
     startAutoRefresh();
 }
 
+function scheduleNextAutoRefresh() {
+    clearTimeout(state.refreshTimer);
+
+    if (!els.email.value.trim()) {
+        state.nextRefreshAt = 0;
+        return;
+    }
+
+    const remainingMs = state.autoRefreshStopAt - Date.now();
+    if (remainingMs <= 0) {
+        stopAutoRefresh("自动刷新已停止，超过 30 分钟未操作。");
+        return;
+    }
+
+    const nextDelayMs = Math.min(REFRESH_SECONDS * 1000, remainingMs);
+    state.nextRefreshAt = Date.now() + nextDelayMs;
+    state.refreshTimer = setTimeout(
+        nextDelayMs < REFRESH_SECONDS * 1000 ? stopExpiredAutoRefresh : refreshMailboxAutomatically,
+        nextDelayMs
+    );
+    scheduleNextRefreshText();
+}
+
+function refreshMailboxAutomatically() {
+    state.nextRefreshAt = Date.now() + REFRESH_SECONDS * 1000;
+    loadMailbox(false);
+    scheduleNextAutoRefresh();
+}
+
+function stopExpiredAutoRefresh() {
+    if (state.autoRefreshStopAt > Date.now()) {
+        scheduleNextAutoRefresh();
+        return;
+    }
+
+    stopAutoRefresh("自动刷新已停止，超过 30 分钟未操作。");
+}
+
+function stopAutoRefresh(message) {
+    clearTimeout(state.refreshTimer);
+    clearInterval(state.countdownTimer);
+    state.refreshTimer = null;
+    state.countdownTimer = null;
+    state.nextRefreshAt = 0;
+    state.autoRefreshStopAt = 0;
+
+    if (message) {
+        setStatus(message, "success");
+    }
+}
+
+function markAutoRefreshActivity() {
+    state.autoRefreshStopAt = Date.now() + AUTO_REFRESH_MAX_MS;
+}
+
 function scheduleNextRefreshText() {
     if (!state.nextRefreshAt) return;
     const seconds = Math.max(0, Math.ceil((state.nextRefreshAt - Date.now()) / 1000));
     const count = state.messages.length;
-    setStatus(`已加载 ${count} 封邮件，${seconds}s 后自动刷新。`, "success");
+    const activeMinutes = Math.max(0, Math.ceil((state.autoRefreshStopAt - Date.now()) / 60000));
+    setStatus(`已加载 ${count} 封邮件，${seconds}s 后自动刷新，${activeMinutes} 分钟未操作后停止。`, "success");
 }
 
 function getMessagesSignature(messages) {
