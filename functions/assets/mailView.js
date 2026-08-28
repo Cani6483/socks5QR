@@ -1,6 +1,6 @@
 const mailtdDomains = new Set(["nqmo.com", "end.tw", "uuf.me", "6n9.net", "sugtbt.com", "qabq.com"]);
 const REFRESH_SECONDS = 15;
-const AUTO_REFRESH_MAX_MS = 30 * 60 * 1000;
+const AUTO_REFRESH_MAX_MS = 10 * 60 * 1000;
 
 const state = {
     messages: [],
@@ -299,7 +299,7 @@ function scheduleNextAutoRefresh() {
 
     const remainingMs = state.autoRefreshStopAt - Date.now();
     if (remainingMs <= 0) {
-        stopAutoRefresh("自动刷新已停止，超过 30 分钟未操作。");
+        stopAutoRefresh("自动刷新已停止。");
         return;
     }
 
@@ -324,7 +324,7 @@ function stopExpiredAutoRefresh() {
         return;
     }
 
-    stopAutoRefresh("自动刷新已停止，超过 30 分钟未操作。");
+    stopAutoRefresh("自动刷新已停止。");
 }
 
 function stopAutoRefresh(message) {
@@ -348,8 +348,7 @@ function scheduleNextRefreshText() {
     if (!state.nextRefreshAt) return;
     const seconds = Math.max(0, Math.ceil((state.nextRefreshAt - Date.now()) / 1000));
     const count = state.messages.length;
-    const activeMinutes = Math.max(0, Math.ceil((state.autoRefreshStopAt - Date.now()) / 60000));
-    setStatus(`已加载 ${count} 封邮件，${seconds}s 后自动刷新，${activeMinutes} 分钟未操作后停止。`, "success");
+    setStatus(`已加载 ${count} 封邮件，${seconds}s 后自动刷新。`, "success");
 }
 
 function getMessagesSignature(messages) {

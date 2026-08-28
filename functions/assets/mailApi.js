@@ -1,6 +1,6 @@
 const MAIL_CODE_VALID_MS = 30 * 60 * 1000;
 const AUTO_REFRESH_SECONDS = 15;
-const AUTO_REFRESH_MAX_MS = 30 * 60 * 1000;
+const AUTO_REFRESH_MAX_MS = 10 * 60 * 1000;
 const mailtdDomains = new Set(["nqmo.com"]);
 
 const state = {
@@ -108,7 +108,7 @@ function scheduleNextAutoRefresh() {
     if (remainingMs <= 0) {
         stopAutoRefresh({
             keepRows: true,
-            message: "自动刷新已停止，超过 30 分钟未操作。"
+            message: "自动刷新已停止。"
         });
         return;
     }
@@ -130,7 +130,7 @@ function stopExpiredAutoRefresh() {
 
     stopAutoRefresh({
         keepRows: true,
-        message: "自动刷新已停止，超过 30 分钟未操作。"
+        message: "自动刷新已停止。"
     });
 }
 
@@ -159,8 +159,7 @@ function markAutoRefreshActivity() {
 function updateAutoRefreshStatus() {
     if (!state.nextRefreshAt || !state.rows.length) return;
     const seconds = Math.max(0, Math.ceil((state.nextRefreshAt - Date.now()) / 1000));
-    const activeMinutes = Math.max(0, Math.ceil((state.autoRefreshStopAt - Date.now()) / 60000));
-    setStatus(els.codeStatus, `已加载 ${state.rows.length} 个邮箱，${seconds}s 后自动刷新，${activeMinutes} 分钟未操作后停止。`, "success");
+    setStatus(els.codeStatus, `已加载 ${state.rows.length} 个邮箱，${seconds}s 后自动刷新。`, "success");
 }
 
 async function copyApiLinks() {
