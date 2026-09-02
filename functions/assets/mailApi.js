@@ -1,15 +1,9 @@
 const MAIL_CODE_VALID_MS = 30 * 60 * 1000;
-const AUTO_REFRESH_SECONDS = 15;
-const AUTO_REFRESH_MAX_MS = 10 * 60 * 1000;
 const mailtdDomains = new Set(["nqmo.com"]);
 
 const state = {
     rows: [],
-    fetchInProgress: false,
-    autoRefreshTimer: null,
-    countdownTimer: null,
-    nextRefreshAt: 0,
-    autoRefreshStopAt: 0
+    fetchInProgress: false
 };
 
 const els = {
@@ -62,41 +56,14 @@ async function fetchCodes() {
                 item.row.refreshBtn.disabled = false;
                 item.row.refreshBtn.textContent = "刷新";
             })));
-        startAutoRefresh();
     } finally {
         state.fetchInProgress = false;
         setBusy(els.fetchCodes, false, "获取邮件验证码");
     }
 }
 
-async function refreshAllCodeRows() {
-    if (state.fetchInProgress || !state.rows.length) {
-        scheduleNextAutoRefresh();
-        return;
-    }
-
-    state.fetchInProgress = true;
-
-    try {
-        await Promise.all(state.rows.map(item => refreshCodeRow(item.row, item.account.email, item.account.password, item.provider, { silent: true })
-            .catch(() => {})));
-    } finally {
-        state.fetchInProgress = false;
-        scheduleNextAutoRefresh();
-    }
-}
-
-function startAutoRefresh() {
-    if (!state.rows.length) return;
-    markAutoRefreshActivity();
-    scheduleNextAutoRefresh();
-
-    clearInterval(state.countdownTimer);
-    state.countdownTimer = setInterval(updateAutoRefreshStatus, 1000);
-    updateAutoRefreshStatus();
-}
-
 function scheduleNextAutoRefresh() {
+    return;
     clearTimeout(state.autoRefreshTimer);
 
     if (!state.rows.length) {
@@ -163,7 +130,6 @@ function updateAutoRefreshStatus() {
 }
 
 async function copyApiLinks() {
-    markAutoRefreshActivity();
     const accounts = parseMailboxLines(els.mailInput.value);
 
     if (!accounts.length) {
@@ -177,7 +143,6 @@ async function copyApiLinks() {
 }
 
 async function copyCodes() {
-    markAutoRefreshActivity();
     const codes = Array.from(els.codeResults.querySelectorAll(".mail-code"))
         .map(button => ({
             index: button.dataset.index || "",
@@ -537,7 +502,6 @@ function appendCodeResult(container, index, account, password, provider, code, t
     accountEl.title = apiLink;
     accountEl.textContent = `${index}. ${account} (${provider === "mailtd" ? "Mail.td" : "firstmail"})`;
     accountEl.addEventListener("click", () => {
-        markAutoRefreshActivity();
         copyText(apiLink, accountEl);
     });
 
@@ -551,7 +515,6 @@ function appendCodeResult(container, index, account, password, provider, code, t
     codeBtn.dataset.index = String(index);
     codeBtn.textContent = code;
     codeBtn.addEventListener("click", () => {
-        markAutoRefreshActivity();
         copyText(codeBtn.textContent, codeBtn);
     });
 
@@ -561,7 +524,6 @@ function appendCodeResult(container, index, account, password, provider, code, t
     refreshBtn.textContent = "刷新";
     refreshBtn.title = "Refresh this mailbox only";
     refreshBtn.addEventListener("click", async () => {
-        markAutoRefreshActivity();
         try {
             await refreshCodeRow({ timeEl, codeBtn, refreshBtn }, account, password, resolveProvider(account));
         } catch (error) {
