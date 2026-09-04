@@ -69,7 +69,7 @@ async function selectAccount(index) {
             password: account.password
         });
 
-        account.messages = Array.isArray(data.messages) ? data.messages : [];
+        account.messages = sortMessagesNewestFirst(Array.isArray(data.messages) ? data.messages : []);
         account.status = "loaded";
         setStatus(`${account.email} 加载完成：${account.messages.length} 封邮件。`, "success");
         renderAccounts();
@@ -356,6 +356,16 @@ function getMessageText(message) {
 function getMessagePreview(message) {
     const data = getMessageData(message);
     return data.preview || data.preview_text || message.preview || message.preview_text || stripHtml(getMessageHtml(message)) || getMessageText(message) || "";
+}
+
+function sortMessagesNewestFirst(messages) {
+    return [...messages].sort((left, right) => getMessageTimeValue(right) - getMessageTimeValue(left));
+}
+
+function getMessageTimeValue(message) {
+    const value = getMessageDate(message);
+    const time = value ? new Date(value).getTime() : 0;
+    return Number.isNaN(time) ? 0 : time;
 }
 
 async function postMailProxy(payload) {
