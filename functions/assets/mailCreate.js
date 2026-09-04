@@ -12,7 +12,7 @@ const els = {
     copyCreated: document.getElementById("copyCreated"),
     generateApiLinks: document.getElementById("generateApiLinks"),
     apiLinks: document.getElementById("apiLinks")
-};
+}; 
 
 const createdAccounts = [];
 
